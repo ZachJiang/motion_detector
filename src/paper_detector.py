@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import rospy
+import apriltag
+import apriltag_ros
 import cv2
 import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
@@ -137,7 +139,50 @@ class ColorFilter:
     # rs[np.where(white_mask1 == [0])] = [0]
     # cv2.fastNlMeansDenoisingColored(rs,None,10,10,7,21)
     # return rs
-    
+
+class Apriltag:
+  #ref: https://www.pyimagesearch.com/2020/11/02/apriltag-with-python/
+  def __init__(self):
+    self.size=[1280,720] 
+  def detect(self,image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    options = apriltag.DetectorOptions(families="tag36h11")
+    detector = apriltag.Detector(options)
+    results = detector.detect(gray) 
+    for r in results:
+      (ptA, ptB, ptC, ptD) = r.corners
+      ptB = (int(ptB[0]), int(ptB[1]))
+      ptC = (int(ptC[0]), int(ptC[1]))
+      ptD = (int(ptD[0]), int(ptD[1]))
+      ptA = (int(ptA[0]), int(ptA[1]))
+      # extract the bounding box (x, y)-coordinates for the AprilTag
+      # and convert each of the (x, y)-coordinate pairs to integers
+
+	    # draw the bounding box of the AprilTag detection
+      cv2.line(image, ptA, ptB, (0, 255, 0), 2)
+      cv2.line(image, ptB, ptC, (0, 255, 0), 2)
+      cv2.line(image, ptC, ptD, (0, 255, 0), 2)
+      cv2.line(image, ptD, ptA, (0, 255, 0), 2)
+	    # draw the center (x, y)-coordinates of the AprilTag
+      (cX, cY) = (int(r.center[0]), int(r.center[1]))
+      cv2.circle(image, (cX, cY), 5, (0, 0, 255), -1)
+      # draw the estimated corner of the paper
+
+    (cX_up, cY_up) = self.estimatCorner(results)
+    cv2.circle(image, (cX_up, cY_up), 9, (255, 0, 0), -1)
+    (cX_dw, cY_dw) = (int(r.center[0]), int(r.center[1]))
+    cv2.circle(image, (cX_up, cY_up), 9, (255, 0, 0), -1)    
+    # show the output image after AprilTag detection
+    return image
+  def estimatCorner(self,results):
+    for r in results:
+      (cX,cY)= (int(r.center[0]), int(r.center[1]))
+      
+    return a,b
+
+
+
+
 class Contours:
   def __init__(self):
     self.size=[1280,720]
@@ -191,8 +236,8 @@ class Motion:
         self.motion_detector1 = ColorFilter()
         # self.motion_detector2 = Canny()
         # self.motion_detector3 = HarrisCorner() 
-        self.motion_detector4 = Contours()
-        
+        # self.motion_detector4 = Contours()
+        self.motion_detector5 = Apriltag()
         rospy.Rate(10)
         rospy.spin()
 
@@ -201,14 +246,15 @@ class Motion:
         if self.motion_detector1:
             cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
 
-            result_img1 = self.motion_detector1.detect(cv_image)
-            result_img4 = self.motion_detector4.detect(result_img1)
+            # result_img1 = self.motion_detector1.detect(cv_image)
+            # result_img4 = self.motion_detector4.detect(result_img1)
             # result_img3 = self.motion_detector3.detect(result_img4)
             #image = self.bridge.cv2_to_imgmsg(result_img, "8UC1")
             #image = self.bridge.cv2_to_imgmsg(result_img, "bgr8")
-            image = self.bridge.cv2_to_imgmsg(result_img4)
-            #image = self.bridge.cv2_to_imgmsg(result_img, "mono8") #for param tuning
-
+            result_img5 = self.motion_detector5.detect(cv_image)
+            image = self.bridge.cv2_to_imgmsg(result_img5)
+    
+            
         self.pub.publish(image)
 
 if __name__ == '__main__':

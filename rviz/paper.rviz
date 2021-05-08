@@ -82,15 +82,85 @@ Visualization Manager:
       Frame Timeout: 1
       Frames:
         All Enabled: true
+        tag_0:
+          Value: true
+        tag_1:
+          Value: true
         tag_10:
           Value: true
+        tag_11:
+          Value: true
+        tag_12:
+          Value: true
+        tag_13:
+          Value: true
+        tag_14:
+          Value: true
+        tag_15:
+          Value: true
+        tag_16:
+          Value: true
+        tag_17:
+          Value: true
+        tag_18:
+          Value: true
+        tag_19:
+          Value: true
+        tag_2:
+          Value: true
+        tag_20:
+          Value: true
+        tag_21:
+          Value: true
+        tag_22:
+          Value: true
+        tag_23:
+          Value: true
+        tag_24:
+          Value: true
+        tag_25:
+          Value: true
+        tag_26:
+          Value: true
+        tag_27:
+          Value: true
+        tag_28:
+          Value: true
+        tag_29:
+          Value: true
+        tag_3:
+          Value: true
+        tag_30:
+          Value: true
+        tag_31:
+          Value: true
+        tag_32:
+          Value: true
+        tag_33:
+          Value: true
+        tag_34:
+          Value: true
         tag_35:
+          Value: true
+        tag_36:
+          Value: true
+        tag_37:
+          Value: true
+        tag_38:
+          Value: true
+        tag_39:
+          Value: true
+        tag_4:
           Value: true
         tag_40:
           Value: true
         tag_41:
           Value: true
         tag_42:
+          Value: true
+        tag_43:
+          Value: true
+        tag_44:
           Value: true
         tag_45:
           Value: true
@@ -100,7 +170,69 @@ Visualization Manager:
           Value: true
         tag_48:
           Value: true
+        tag_49:
+          Value: true
         tag_5:
+          Value: true
+        tag_50:
+          Value: true
+        tag_51:
+          Value: true
+        tag_52:
+          Value: true
+        tag_53:
+          Value: true
+        tag_54:
+          Value: true
+        tag_55:
+          Value: true
+        tag_56:
+          Value: true
+        tag_57:
+          Value: true
+        tag_58:
+          Value: true
+        tag_59:
+          Value: true
+        tag_6:
+          Value: true
+        tag_60:
+          Value: true
+        tag_61:
+          Value: true
+        tag_62:
+          Value: true
+        tag_64:
+          Value: true
+        tag_65:
+          Value: true
+        tag_66:
+          Value: true
+        tag_67:
+          Value: true
+        tag_68:
+          Value: true
+        tag_69:
+          Value: true
+        tag_7:
+          Value: true
+        tag_70:
+          Value: true
+        tag_71:
+          Value: true
+        tag_76:
+          Value: true
+        tag_77:
+          Value: true
+        tag_78:
+          Value: true
+        tag_79:
+          Value: true
+        tag_8:
+          Value: true
+        tag_80:
+          Value: true
+        tag_9:
           Value: true
         usb_cam:
           Value: true
@@ -108,18 +240,88 @@ Visualization Manager:
       Name: TF
       Show Arrows: true
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
         usb_cam:
+          tag_0:
+            {}
+          tag_1:
+            {}
           tag_10:
             {}
+          tag_11:
+            {}
+          tag_12:
+            {}
+          tag_13:
+            {}
+          tag_14:
+            {}
+          tag_15:
+            {}
+          tag_16:
+            {}
+          tag_17:
+            {}
+          tag_18:
+            {}
+          tag_19:
+            {}
+          tag_2:
+            {}
+          tag_20:
+            {}
+          tag_21:
+            {}
+          tag_22:
+            {}
+          tag_23:
+            {}
+          tag_24:
+            {}
+          tag_25:
+            {}
+          tag_26:
+            {}
+          tag_27:
+            {}
+          tag_28:
+            {}
+          tag_29:
+            {}
+          tag_3:
+            {}
+          tag_30:
+            {}
+          tag_31:
+            {}
+          tag_32:
+            {}
+          tag_33:
+            {}
+          tag_34:
+            {}
           tag_35:
+            {}
+          tag_36:
+            {}
+          tag_37:
+            {}
+          tag_38:
+            {}
+          tag_39:
+            {}
+          tag_4:
             {}
           tag_40:
             {}
           tag_41:
             {}
           tag_42:
+            {}
+          tag_43:
+            {}
+          tag_44:
             {}
           tag_45:
             {}
@@ -129,7 +331,69 @@ Visualization Manager:
             {}
           tag_48:
             {}
+          tag_49:
+            {}
           tag_5:
+            {}
+          tag_50:
+            {}
+          tag_51:
+            {}
+          tag_52:
+            {}
+          tag_53:
+            {}
+          tag_54:
+            {}
+          tag_55:
+            {}
+          tag_56:
+            {}
+          tag_57:
+            {}
+          tag_58:
+            {}
+          tag_59:
+            {}
+          tag_6:
+            {}
+          tag_60:
+            {}
+          tag_61:
+            {}
+          tag_62:
+            {}
+          tag_64:
+            {}
+          tag_65:
+            {}
+          tag_66:
+            {}
+          tag_67:
+            {}
+          tag_68:
+            {}
+          tag_69:
+            {}
+          tag_7:
+            {}
+          tag_70:
+            {}
+          tag_71:
+            {}
+          tag_76:
+            {}
+          tag_77:
+            {}
+          tag_78:
+            {}
+          tag_79:
+            {}
+          tag_8:
+            {}
+          tag_80:
+            {}
+          tag_9:
             {}
       Update Interval: 0
       Value: true
@@ -158,7 +422,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.36786985
+      Distance: 1.83367836
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -173,10 +437,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.780398011
+      Pitch: 1.04539776
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.795397699
+      Yaw: 5.9585762
     Saved: ~
 Window Geometry:
   Displays:
