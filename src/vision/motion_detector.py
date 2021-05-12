@@ -48,9 +48,12 @@ class Motion:
                 T = (T[0]/1000,T[1]/1000,T[2]/1000)
                 self.br.sendTransform(T,quaternion,rospy.Time.now(),"paper","usb_cam1")
 
-                if result_img2 is not None:
-                    image = self.bridge.cv2_to_imgmsg(result_img2)
-                    self.pub.publish(image)
+                image = self.bridge.cv2_to_imgmsg(img_perspCorr,"bgr8")
+                self.pub.publish(image)
+
+                # if result_img2 is not None:
+                #     image = self.bridge.cv2_to_imgmsg(result_img2)
+                #     self.pub.publish(image)
         # self.pub.publish(image)
 
 
