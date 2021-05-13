@@ -26,17 +26,18 @@ if __name__ == '__main__':
     # cv2.waitKey(0)
 
  # For all images
-    # for i in range(193):
-    #     print 'i',i
-    #     img_src = cv2.imread('cropped_sample/left'+"{0:0>4}".format(i)+'.jpg')
-    #     print 'cropped_sample/left'+"{0:0>4}".format(i)+'.jpg'
+   #  for i in range(193):
+   #      print 'i',i
+   #      img_src = cv2.imread('cropped_sample/left'+"{0:0>4}".format(i)+'.jpg')
+   #      print 'cropped_sample/left'+"{0:0>4}".format(i)+'.jpg'
         
-    #     motion_detector1 = cl.GetCreases()
-    #     result_img1, creases = motion_detector1.detect(img_src)  
-    #     # Show output
-    #     # cv2.imshow("Original_image", img_src)
-    #     cv2.imshow("Image", result_img1)
-    #     cv2.waitKey(0)
+   #      motion_detector1 = cl.GetCreases()
+   #      result_img1, creases = motion_detector1.detect(img_src)  
+   #      # Show output
+   #      # cv2.imshow("Original_image", img_src)
+   #      print "crease info", creases
+   #      cv2.imshow("Image", result_img1)
+   #      cv2.waitKey(0)
         
 ###test 2: CornerMatch
  ##For one image:
@@ -70,16 +71,48 @@ if __name__ == '__main__':
 
  ##For all images:
 
+   #  for i in range(0,277):
+   #      # print 'i',i
+   #      img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
+   #      print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
+   #      motion_detector = cl.CornerMatch()
+
+   #      image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
+   #      cv2.imshow("corner match test",image)        
+   #      print 'white vertex',white_vertex
+   #      print 'green vertex',green_vertex
+
+   #      cv2.waitKey(0)
+
+###test 3: CornerMatch_new:
+ ##For 1 image:
+
+      #   i=100
+      #   img_src = cv2.imread('corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg')
+      #   print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+      #   motion_detector = cl.CornerMatch_new()
+
+
+      #   image,white_vertex,green_vertex = motion_detector.hsv_calc(img_src)
+      #   cv2.imshow("corner match",image)        
+      #   print 'white vertex',white_vertex
+      #   print 'green vertex',green_vertex
+        
+      #   cv2.waitKey(0)
+
+
+ ##For all images:
+
     for i in range(0,277):
         # print 'i',i
-        img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
-        print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
-        motion_detector = cl.CornerMatch()
+        img_src = cv2.imread('corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg')
+        print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+        motion_detector = cl.CornerMatch_new()
+
 
         image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
-        cv2.imshow("corner matchf",image)        
+        cv2.imshow("corner match",image)        
         print 'white vertex',white_vertex
         print 'green vertex',green_vertex
 
         cv2.waitKey(0)
-
