@@ -8,10 +8,11 @@ import shapeUtil as su
 import time
 from numpy.linalg import inv
 
-from skimage import img_as_ubyte,img_as_float
+from skimage import img_as_ubyte,img_as_float,exposure
 from skimage.morphology import closing, square
 from skimage.measure import label
 from skimage.filters import threshold_otsu
+
 
 kernel_elliptic_7 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
 kernel_elliptic_15 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
@@ -679,26 +680,28 @@ class CornerMatch_new:
 
     def mainFuc(self, image):
       
-        img_src = image
+        # skimage_src = img_as_float(image)
+        # skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+        # img_src = img_as_ubyte(skimage)
 
+        img_src = image
 
         #step1: color filter
         img_white,mask_white = self.filter(img_src,'white')
         cv2.imshow('color white',img_white)   
         img_green,mask_green = self.filter(img_src,'green')
-        # cv2.imshow('color green',img_green)
-        img_red,mask_red = self.filter(img_src,'red')
+        cv2.imshow('color green',img_green)
+        # img_red,mask_red = self.filter(img_src,'red')
         # cv2.imshow('color red',img_red)
         img_blue,mask_blue = self.filter(img_src,'blue')
-        # cv2.imshow('color red',img_blue)
-        img_paper , mask_paper = self.filter(img_src, 'paper')
+        _ , mask_paper = self.filter(img_src, 'paper')
         cv2.imshow('paper mask',mask_paper)
         #step2: canny detection
-        canny_img_green = self.detect(img_green)
-        canny_img_white = self.detect(img_white)
-        result_img_green = self.get_edge_lines(canny_img_green, mask_blue, 'top') # get close green line
+        canny_img_green = self.detect(mask_green)
+        canny_img_white = self.detect(mask_white)
+        result_img_green = self.get_edge_lines(canny_img_green, mask_blue, mask_blue, 'top') # get close green line
 
-        result_img_white = self.get_edge_lines(canny_img_white, mask_green, 'bottom') #get white line
+        result_img_white = self.get_edge_lines(canny_img_white, mask_green, mask_blue, 'bottom') #get white line
         # cv2.imshow('canny detection green',result_img_green)
         # cv2.imshow('canny detection white line',result_img_white)
 
@@ -763,8 +766,8 @@ class CornerMatch_new:
         return combined_image,white_vertex,green_vertex
 
     def detect(self,frame):
-        blurr = cv2.GaussianBlur(frame, (5, 5), 0)
-        imgG = cv2.cvtColor(blurr, cv2.COLOR_BGR2GRAY)
+        imgG = cv2.GaussianBlur(frame, (5, 5), 0)
+        # imgG = cv2.cvtColor(blurr, cv2.COLOR_BGR2GRAY)
         imgC = cv2.morphologyEx(imgG, cv2.MORPH_CLOSE, (11, 11))
         imgC = cv2.Canny(imgC, 50, 60)
         imgC = cv2.morphologyEx(imgC, cv2.MORPH_CLOSE, (3, 3))
@@ -927,21 +930,29 @@ class CornerMatch_new:
         #hsv color
         if color == 'green':
             # lowerG = (19,48,0)
-            lowerG = (27,30,43)
-            upperG = (77,255,190)
-
+            lowerG = (24,0,39)
+            upperG = (96,255,146)
             maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
+
             maskG = cv2.GaussianBlur(maskG, (5, 5), 0)
             mask = cv2.morphologyEx(maskG, cv2.MORPH_CLOSE, np.ones((19 ,19)))
             result = cv2.bitwise_and(blurr_hsv,blurr_hsv,mask=mask)
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)
 
         elif color == 'white':
-            lower = (0,0,149)
-            upper = (141,32,255)
-            mask = cv2.inRange(blurr_hsv, lower, upper)
-            mask = cv2.GaussianBlur(mask, (5, 5), 0)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((19 ,19)))            
+
+            _,maskGW = self.filter(image, 'paper')
+            lowerG = (24,0,39)
+            upperG = (96,255,146)
+            maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
+            maskNoG = cv2.bitwise_not(maskG)
+            mask = cv2.bitwise_and(maskGW,maskNoG)
+
+            # cv2.imshow('maskGW', maskGW)
+            # cv2.imshow('maskW', mask)
+
+            # mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((9 ,9)))            
             result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR) 
         elif color == 'red':
@@ -951,45 +962,44 @@ class CornerMatch_new:
             result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR) 
         elif color == 'blue':
-            lowerB = (30,119,0)
-            upperB = (158,255,255)
+            lowerB = (101,44,0)
+            upperB = (132,255,255)
+
+            kernel = np.ones((5,3),np.uint8)
             mask = cv2.inRange(blurr_hsv, lowerB, upperB)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7 ,7)))
+            mask = cv2.dilate(mask,kernel,iterations = 3)
+
             result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)         
         elif color == 'paper':
-            # lowerG = (27,30,43)
-            # upperG = (77,255,190)
-
-            # lowerW = (0,0,149)
-            # upperW = (141,32,255)
 
             lowerR = (0,119,0)
             upperR = (60,255,255)
 
-            lowerB = (30,119,0)
-            upperB= (158,255,255)
+            # lowerB = (30,119,0)
+            # upperB= (158,255,255)
 
-            kernel = np.ones((3,3),np.uint8)
+            lowerB = (106,0,0)
+            upperB = (165,255,255)
 
-            maskR = cv2.inRange(blurr_hsv, lowerR, upperR)
-            maskB = cv2.inRange(blurr_hsv, lowerB, upperB)
-            maskB = cv2.dilate(maskB,kernel,iterations = 3)
-            maskB = cv2.morphologyEx(maskB, cv2.MORPH_CLOSE, np.ones((7 ,7)))
-            maskRB = cv2.bitwise_or(maskR,maskB)
+            lowerRB = (0, 85, 0)
+            upperRB = (179,255,255)
+
+            # kernel = np.ones((2,2),np.uint8)
+            # maskB = cv2.inRange(blurr_hsv, lowerB, upperB)
+            # maskB = cv2.morphologyEx(maskB, cv2.MORPH_OPEN, np.ones((3 ,3)))
+            # maskB = cv2.dilate(maskB,kernel,iterations = 5)           
+            # maskB = cv2.morphologyEx(maskB, cv2.MORPH_OPEN, np.ones((3 ,3)))
+
+            # maskR = cv2.inRange(blurr_hsv, lowerR, upperR)
+            # # maskR = cv2.morphologyEx(maskR, cv2.MORPH_OPEN, np.ones((7 ,7)))
+            # # maskR = cv2.dilate(maskR,kernel,iterations = 5)                      
+            # maskRB = cv2.bitwise_or(maskR,maskB)
+
+
+            maskRB =  cv2.inRange(blurr_hsv, lowerRB, upperRB)
             mask = cv2.bitwise_not(maskRB)
-
-
-
-            ##old one: by mask W & G
-            # maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
-            # maskG = cv2.dilate(maskG,kernel,iterations = 1)
-            # maskW = cv2.inRange(blurr_hsv, lowerW, upperW)
-            # maskW = cv2.morphologyEx(maskW, cv2.MORPH_OPEN, np.ones((7 ,7)))
-            # maskW = cv2.dilate(maskW,kernel,iterations = 1)
-
-            # mask = cv2.bitwise_or(maskG,maskW)
-            # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7 ,7)))
-            # mask = cv2.dilate(mask,kernel,iterations = 2)
 
             lcc = self.largestConnectComponent(mask)
             lcc = np.asarray(lcc, dtype="uint8")            
@@ -1027,12 +1037,13 @@ class CornerMatch_new:
         cv_image = img_as_ubyte(lcc)
         return cv_image
     
-    def get_edge_lines(self,canny_img1,mask_img2,layer):
+    def get_edge_lines(self,canny_img1,mask_img1,mask_img2, layer):
 
         ''' The function aims to clear edges between white and green 
         ----- input paras:
         canny_img1: the canny image of target layer
-        mask_img2: the binary mask of the neighbour
+        mask_img1: the binary mask of the neighbour
+        mask_img2: the binary mask of the finger
         layer: either 'top' or 'bottom', top means include the close region to mask, bottom as exclude
         '''
         kernel = np.ones((1,1),np.uint8)
@@ -1040,12 +1051,21 @@ class CornerMatch_new:
         img_dilate1 = cv2.dilate(canny_img1,kernel,iterations = 1)
 
         if layer == 'bottom':
-            kernel = np.ones((11,11),np.uint8)
-            mask2 = cv2.dilate(mask_img2,kernel,iterations = 4)
-            result_img1 = cv2.bitwise_and(img_dilate1, mask2)
-            result_img = cv2.bitwise_xor(img_dilate1,result_img1)
+            kernel1 = np.ones((11,11),np.uint8)
+            mask1 = cv2.dilate(mask_img1,kernel1,iterations = 4)
+            result_img1 = cv2.bitwise_and(img_dilate1, mask1)
+            result_img1 = cv2.bitwise_xor(img_dilate1,result_img1)
+
+            kernel1 = np.ones((25,25),np.uint8)
+            mask2 = cv2.dilate(mask_img2,kernel1,iterations = 11)
+            result_img = cv2.bitwise_and(result_img1, mask2)
+
+            cv2.imshow("result img1", result_img1)
+            cv2.imshow("overall", result_img)
+            cv2.imshow('mask2', mask2)
+
         elif layer == 'top':
-            kernel = np.ones((33,33),np.uint8)
+            kernel = np.ones((25,25),np.uint8)
             mask1 = cv2.dilate(mask_img2,kernel,iterations = 5)
             mask1 = cv2.morphologyEx(mask1, cv2.MORPH_CLOSE, np.ones((11 ,11)))
             mask2 = cv2.dilate(mask_img2,np.ones((5,5),np.uint8),iterations = 4)
@@ -1054,7 +1074,7 @@ class CornerMatch_new:
             result_img2 = cv2.bitwise_and(result_img1, mask2)
             result_img = cv2.bitwise_xor(result_img1,result_img2)
 
-            result_img =cv2.dilate(result_img,np.ones((4,4),np.uint8),iterations=4)     
+            result_img =cv2.dilate(result_img,np.ones((2,2),np.uint8),iterations=4)     
             result_img = cv2.morphologyEx(result_img, cv2.MORPH_OPEN, np.ones((2 ,2)))
        
             # for i in range(5):

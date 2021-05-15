@@ -9,6 +9,9 @@ import time
 import classes as cl
 import tf
 
+from skimage import img_as_ubyte,img_as_float,exposure
+
+
 
 if __name__ == '__main__':
 
@@ -69,29 +72,35 @@ if __name__ == '__main__':
     # cv2.imshow('image',combined_image)
     # cv2.waitKey(0)
 
- ##For all images:
+#  #For all images:
 
-   #  for i in range(0,277):
-   #      # print 'i',i
-   #      img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
-   #      print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
-   #      motion_detector = cl.CornerMatch()
+#     for i in range(0,277):
+#         # print 'i',i
+#         img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
+#         print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
+#         motion_detector = cl.CornerMatch()
 
-   #      image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
-   #      cv2.imshow("corner match test",image)        
-   #      print 'white vertex',white_vertex
-   #      print 'green vertex',green_vertex
+#         image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
+#         cv2.imshow("corner match test",image)        
+#         print 'white vertex',white_vertex
+#         print 'green vertex',green_vertex
 
-   #      cv2.waitKey(0)
+#         cv2.waitKey(0)
 
 ###test 3: CornerMatch_new:
  ##For 1 image:
 
-      #   i=100
-      #   img_src = cv2.imread('corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg')
+      #   i=200
+
+
+
+      #   img_src = cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')
       #   print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
       #   motion_detector = cl.CornerMatch_new()
 
+      #   skimage_src = img_as_float(img_src)
+      #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+      #   img_src = img_as_ubyte(skimage)
 
       #   image,white_vertex,green_vertex = motion_detector.hsv_calc(img_src)
       #   cv2.imshow("corner match",image)        
@@ -105,8 +114,8 @@ if __name__ == '__main__':
 
     for i in range(0,277):
         # print 'i',i
-        img_src = cv2.imread('corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg')
-        print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+        img_src = cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')
+        print 'str','corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg'
         motion_detector = cl.CornerMatch_new()
 
 
