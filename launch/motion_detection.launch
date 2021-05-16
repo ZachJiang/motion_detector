@@ -3,6 +3,7 @@
   <!-- Launch the motion detector node for image processing. -->
   <node pkg="motion_detector" name="MotionDetector" type="motion_detector.py" 
       args="-d $(find motion_detector)/src/motion_detector.py" output='screen'/>
+  <!-- may set args: output='screen'-->
 
   <!-- Launch the driver node for our usb camera. -->
   <node name="usb_cam_h" pkg="usb_cam" type="usb_cam_node" output="screen" >
