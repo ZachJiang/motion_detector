@@ -37,6 +37,8 @@ class Motion:
         self.motion_detector1 = cl.GetTrans_new(pts_src,A)
         self.motion_detector2 = cl.GetCreases()
         self.motion_detector3 = cl.CornerMatch_new()
+
+        cv2.destroyAllWindows()
         rospy.spin()
 
     def imageCallback1(self, image):

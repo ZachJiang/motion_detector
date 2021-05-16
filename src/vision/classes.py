@@ -156,6 +156,132 @@ class GetTrans:
             return None, (None, None), merged_img, None
             # return (None, None), merged_img
 
+class GetTrans_new:
+    def __init__(self,pts_src,A):
+
+        self.A = A
+        self.red_point = (0, 0)
+        # self.red_lower = [115, 100, 100]
+        # self.red_upper = [125, 255, 255]
+        #pts_src = pts_src / 1.05  # convert pixels to meters, can be changed for different sized "H"
+        self.pts_src = pts_src[::-1]  # reverse the order of the array
+
+
+    def detect(self, frame, ori_img):
+
+        #global out
+        A = self.A
+        pts_src = self.pts_src
+        R, T = None, None
+        im_perspCorr = None # black_image (300,300,3)   np.zeros((300,300,3), np.uint8)
+        blurr = cv2.GaussianBlur(frame, (5, 5), 0)
+        imgG = cv2.cvtColor(blurr, cv2.COLOR_BGR2GRAY)
+        imgC = cv2.Canny(imgG, 50, 60)
+        imgC = cv2.morphologyEx(imgC, cv2.MORPH_CLOSE, (3, 3))
+        # imgC = cv2.dilate(imgC, (3, 3), iterations=2)
+        # (_,cont, _) = cv2.findContours(imgC.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        (_,cont, _)=cv2.findContours(imgC.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        best_approx = None
+        lowest_error = float("inf")
+
+        #contour selection
+        for c in cont:
+            pts_dst = []
+            perim = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, .01 * perim, True)
+            area = cv2.contourArea(c)
+
+            if len(approx) == len(self.pts_src):
+                right, error = su.rightA(approx, 80) #change the thresh if not look vertically
+                # print(right)
+                if error < lowest_error and right:
+                    lowest_error = error
+                    best_approx = approx
+
+        # red_point, _ = su.detectColor(blurr, red_lower, red_upper)
+        # if red_point is not None:
+           # cv2.circle(frame, (red_point[0] + frame.shape[0] / 2, red_point[1] + frame.shape[1] / 2), 5, (0, 0, 255), 2)
+
+        if best_approx is not None:
+            # print 'best approx',best_approx
+            # print 'red point',self.red_point
+            cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
+
+            for i in range(0, len(best_approx)):
+                pts_dst.append((best_approx[i][0][0], best_approx[i][0][1]))
+                # cv2.circle(frame, pts_dst[-1], 3, (i*30, 0, 255-i*20), 3)
+
+            # Correction method for contour points.  Need to make sure the points are mapped correctly
+            pts_dst = su.sortContour(
+                np.array((self.red_point[0] + pts_dst[0][0], self.red_point[1] + pts_dst[0][1])), pts_dst)
+
+            cv2.circle(frame, pts_dst[0], 7, (0, 255, 0), 4)
+
+            center = su.line_intersect(pts_dst[0][0],pts_dst[0][1],pts_dst[2][0],pts_dst[2][1],
+                                       pts_dst[1][0],pts_dst[1][1],pts_dst[3][0],pts_dst[3][1])
+            cv2.circle(frame, (int(center[0]), int(center[1])), 5, (0, 0, 255), 2)
+
+            for i in range(0, len(best_approx)):
+                cv2.circle(frame, pts_dst[i], 3, (i * 30, 0, 255 - i * 20), 3)
+
+            h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float))
+            # center1 = np.dot(h,(0,0,1))
+            # print 'center',center
+            # print 'center1',center1
+            # print 'status',status
+
+            (R, T) = su.decHomography(A, h)
+            ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
+            num, Rs, Ts, Ns = cv2.decomposeHomographyMat(h, A)
+            '''
+            num possible solutions will be returned.
+            Rs contains a list of the rotation matrix.
+            Ts contains a list of the translation vector.
+            Ns contains a list of the normal vector of the plane.
+            '''
+            # print 'num',num
+            # print 'Ts',Ts
+            u0 = A[0,2]
+            v0 = A[1,2]
+            f = A[0,0]
+            Translation = [Ts[0][2]/f*(Ts[0][0]),Ts[0][2]/f*(Ts[0][1]),Ts[0][2]]
+            # print 'R',R
+            # print 'RS',Rs
+            # print 'tranlation3',Translation
+            Rot = su.decRotation(np.matrix(Rs[3]))
+            ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
+
+            zR = np.matrix([[math.cos(Rot[2]), -math.sin(Rot[2])], [math.sin(Rot[2]), math.cos(Rot[2])]])
+            cv2.putText(imgC, 'rX: {:0.2f} rY: {:0.2f} rZ: {:0.2f}'.format(Rot[0] * 180 / np.pi, Rot[1] * 180 / np.pi, Rot[2] * 180 / np.pi), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+            cv2.putText(imgC, 'tX: {:0.2f} tY: {:0.2f} tZ: {:0.2f}'.format(Translation[0][0], Translation[1][0], Translation[2][0]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+            pDot = np.dot((-200, -200), zR)
+            # pDot = np.dot((-148, -148),zR)
+            self.red_point = (int(pDot[0, 0]), int(pDot[0, 1]))
+
+            # cv2.circle(frame, (int(pDot[0, 0]) + pts_dst[0][0], int(pDot[0, 1]) + pts_dst[0][1]), 5, (0, 0, 255), 2)
+
+            # # get perspective corrected paper
+            pts1 = pts_dst
+            half_len = int(abs(pts_src[0][0]))
+            pts2 = pts_src + np.ones((4,2),dtype=int)*half_len
+            M = cv2.getPerspectiveTransform(np.float32(pts1),np.float32(pts2))
+            img_size = (half_len*2, half_len*2)
+            im_perspCorr = cv2.warpPerspective(ori_img,M,img_size)
+
+        merged_img = np.concatenate((frame, cv2.cvtColor(imgC, cv2.COLOR_BAYER_GB2BGR)), axis=1)
+        # merged_img = im_perspCorr
+
+        if R is not None:
+            # print 'R',R
+            # print 'T',T
+            Rotation = Rot
+
+            return R,(Rotation, Translation), merged_img, im_perspCorr
+            # return (Rotation, Translation), merged_img
+        else:
+            return None, (None, None), merged_img, None
+            # return (None, None), merged_img
+
 class GetCreases:
   def __init__(self):
     self.size=[1280,720]
@@ -281,7 +407,7 @@ class HoughBundler:
         # [[x,y],[x,y]]
         return [points[0], points[-1]]
 
-    def process_lines(self, lines, img, min_distance_to_merge, min_angle_to_merge):
+    def process_lines(self, lines, img, min_distance_to_merge = 10, min_angle_to_merge = 10):
         '''Main function for lines from cv.HoughLinesP() output merging
         for OpenCV 3
         lines -- cv.HoughLinesP() output
@@ -480,20 +606,22 @@ class CornerMatch:
         right = []
 
         for line in lines:
-            x1, y1, x2, y2 = line.reshape(4)
+            if line is not None:
+                x1, y1, x2, y2 = line.reshape(4)
 
-            # Fit polynomial, find intercept and slope
-            params = np.polyfit((x1, x2), (y1, y2), 1)
-            slope = params[0]
-            y_intercept = params[1]
+                print 'line', x1,y1,x2,y2
+                # Fit polynomial, find intercept and slope
+                params = np.polyfit((x1, x2), (y1, y2), deg = 1)
+                slope = params[0]
+                y_intercept = params[1]
 
-            # print 'slope',slope
-            # print 'y_intercept',y_intercept
+                # print 'slope',slope
+                # print 'y_intercept',y_intercept
 
-            if slope < 0:
-                left.append((slope, y_intercept)) #Negative slope = left lane
-            else:
-                right.append((slope, y_intercept)) #Positive slope = right lane
+                if slope < 0:
+                    left.append((slope, y_intercept)) #Negative slope = left lane
+                else:
+                    right.append((slope, y_intercept)) #Positive slope = right lane
 
         # Avg over all values for a single slope and y-intercept value for each line
 
@@ -688,22 +816,22 @@ class CornerMatch_new:
 
         #step1: color filter
         img_white,mask_white = self.filter(img_src,'white')
-        cv2.imshow('color white',img_white)   
+        # cv2.imshow('color white',img_white)   
         img_green,mask_green = self.filter(img_src,'green')
-        cv2.imshow('color green',img_green)
+        # cv2.imshow('color green',img_green)
         # img_red,mask_red = self.filter(img_src,'red')
         # cv2.imshow('color red',img_red)
         img_blue,mask_blue = self.filter(img_src,'blue')
         _ , mask_paper = self.filter(img_src, 'paper')
-        cv2.imshow('paper mask',mask_paper)
+        # cv2.imshow('paper mask',mask_paper)
         #step2: canny detection
         canny_img_green = self.detect(mask_green)
         canny_img_white = self.detect(mask_white)
         result_img_green = self.get_edge_lines(canny_img_green, mask_blue, mask_blue, 'top') # get close green line
 
         result_img_white = self.get_edge_lines(canny_img_white, mask_green, mask_blue, 'bottom') #get white line
-        # cv2.imshow('canny detection green',result_img_green)
-        # cv2.imshow('canny detection white line',result_img_white)
+        cv2.imshow('canny detection green',result_img_green)
+        cv2.imshow('canny detection white line',result_img_white)
 
 
         #step3: roi mask
@@ -742,18 +870,20 @@ class CornerMatch_new:
         else:
             # averaged_lines_green = self.avg_lines(img_src, lines_green)              #Average the Hough lines as left or right lanes
             a = HoughBundler()
-            merged_lines_green = a.process_lines(lines_green, result_img2_green, min_distance_to_merge = 140, min_angle_to_merge = 50)        
+            print "green lines", lines_green
+            # previous: 140,50
+            merged_lines_green = a.process_lines(lines_green, result_img2_green, min_distance_to_merge =120, min_angle_to_merge = 55)        
             out = np.empty(shape=[0, 4])
             for line in merged_lines_green:
                 out = np.append(out,[[line[0][0], line[0][1], line[1][0], line[1][1]]],axis=0)
             averaged_lines_green = out.astype(int)
-            print "line green",averaged_lines_green
+            # print "line green",averaged_lines_green
   
         if lines_white is None: 
             averaged_lines_white = None
         else:
             averaged_lines_white = self.avg_lines(img_src, lines_white)              #Average the Hough lines as left or right lanes
-            print "line white",averaged_lines_white
+            # print "line white",averaged_lines_white
         combined_image = self.draw_lines(img_src, averaged_lines_white,
                                                     averaged_lines_green,5,
                                                     color1=[0, 0, 255],color2=[0,255,255]) #draw line for white zone and green zone
@@ -931,7 +1061,7 @@ class CornerMatch_new:
         if color == 'green':
             # lowerG = (19,48,0)
             lowerG = (24,0,39)
-            upperG = (96,255,146)
+            upperG = (96,255,255)
             maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
 
             maskG = cv2.GaussianBlur(maskG, (5, 5), 0)
@@ -943,7 +1073,7 @@ class CornerMatch_new:
 
             _,maskGW = self.filter(image, 'paper')
             lowerG = (24,0,39)
-            upperG = (96,255,146)
+            upperG = (96,255,255)
             maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
             maskNoG = cv2.bitwise_not(maskG)
             mask = cv2.bitwise_and(maskGW,maskNoG)
@@ -962,8 +1092,8 @@ class CornerMatch_new:
             result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR) 
         elif color == 'blue':
-            lowerB = (101,44,0)
-            upperB = (132,255,255)
+            lowerB = (19,81,0)
+            upperB = (168,255,255)
 
             kernel = np.ones((5,3),np.uint8)
             mask = cv2.inRange(blurr_hsv, lowerB, upperB)
@@ -974,28 +1104,11 @@ class CornerMatch_new:
             result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)         
         elif color == 'paper':
 
-            lowerR = (0,119,0)
-            upperR = (60,255,255)
+            # lowerRB = (0, 85, 0)
+            # upperRB = (179,255,255)
 
-            # lowerB = (30,119,0)
-            # upperB= (158,255,255)
-
-            lowerB = (106,0,0)
-            upperB = (165,255,255)
-
-            lowerRB = (0, 85, 0)
+            lowerRB = (0, 69, 0)
             upperRB = (179,255,255)
-
-            # kernel = np.ones((2,2),np.uint8)
-            # maskB = cv2.inRange(blurr_hsv, lowerB, upperB)
-            # maskB = cv2.morphologyEx(maskB, cv2.MORPH_OPEN, np.ones((3 ,3)))
-            # maskB = cv2.dilate(maskB,kernel,iterations = 5)           
-            # maskB = cv2.morphologyEx(maskB, cv2.MORPH_OPEN, np.ones((3 ,3)))
-
-            # maskR = cv2.inRange(blurr_hsv, lowerR, upperR)
-            # # maskR = cv2.morphologyEx(maskR, cv2.MORPH_OPEN, np.ones((7 ,7)))
-            # # maskR = cv2.dilate(maskR,kernel,iterations = 5)                      
-            # maskRB = cv2.bitwise_or(maskR,maskB)
 
 
             maskRB =  cv2.inRange(blurr_hsv, lowerRB, upperRB)
@@ -1046,23 +1159,20 @@ class CornerMatch_new:
         mask_img2: the binary mask of the finger
         layer: either 'top' or 'bottom', top means include the close region to mask, bottom as exclude
         '''
-        kernel = np.ones((1,1),np.uint8)
-        # erosion1 = cv2.erode(img,kernel,iterations = 1)
-        img_dilate1 = cv2.dilate(canny_img1,kernel,iterations = 1)
 
         if layer == 'bottom':
-            kernel1 = np.ones((11,11),np.uint8)
-            mask1 = cv2.dilate(mask_img1,kernel1,iterations = 4)
-            result_img1 = cv2.bitwise_and(img_dilate1, mask1)
-            result_img1 = cv2.bitwise_xor(img_dilate1,result_img1)
+            kernel1 = np.ones((13,13),np.uint8)
+            mask1 = cv2.dilate(mask_img1,kernel1,iterations = 6)
+            result_img1 = cv2.bitwise_and(canny_img1, mask1)
+            result_img1 = cv2.bitwise_xor(canny_img1,result_img1)
 
             kernel1 = np.ones((25,25),np.uint8)
             mask2 = cv2.dilate(mask_img2,kernel1,iterations = 11)
             result_img = cv2.bitwise_and(result_img1, mask2)
 
-            cv2.imshow("result img1", result_img1)
-            cv2.imshow("overall", result_img)
-            cv2.imshow('mask2', mask2)
+            # cv2.imshow("result img1", result_img1)
+            # cv2.imshow("overall", result_img)
+            # cv2.imshow('mask2', mask2)
 
         elif layer == 'top':
             kernel = np.ones((25,25),np.uint8)
@@ -1070,7 +1180,7 @@ class CornerMatch_new:
             mask1 = cv2.morphologyEx(mask1, cv2.MORPH_CLOSE, np.ones((11 ,11)))
             mask2 = cv2.dilate(mask_img2,np.ones((5,5),np.uint8),iterations = 4)
 
-            result_img1 = cv2.bitwise_and(img_dilate1, mask1)
+            result_img1 = cv2.bitwise_and(canny_img1, mask1)
             result_img2 = cv2.bitwise_and(result_img1, mask2)
             result_img = cv2.bitwise_xor(result_img1,result_img2)
 
