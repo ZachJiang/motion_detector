@@ -33,7 +33,6 @@ if __name__ == '__main__':
    #      print 'i',i
    #      img_src = cv2.imread('cropped_sample/left'+"{0:0>4}".format(i)+'.jpg')
    #      print 'cropped_sample/left'+"{0:0>4}".format(i)+'.jpg'
-        
    #      motion_detector1 = cl.GetCreases()
    #      result_img1, creases = motion_detector1.detect(img_src)  
    #      # Show output
@@ -50,11 +49,9 @@ if __name__ == '__main__':
     # #step1: image process and canny
     # result_img = motion_detector.detect(img_src)
     # # cv2.imshow("result_img", result_img)
-
     # #step2: roi mask
     # result_img2 = motion_detector.ROI_mask(result_img)
     # # cv2.imshow('result_img2',result_img2)
-
     # #step3: houghline transform
     # lines = cv2.HoughLinesP(result_img2,
     #                         rho=2,              #Distance resolution in pixels
@@ -65,63 +62,128 @@ if __name__ == '__main__':
     #                         maxLineGap=25       #Max gap allowed between points on the same line
     #                         )
     # # print 'lines',lines
-
     # averaged_lines = motion_detector.avg_lines(img_src, lines)              #Average the Hough lines as left or right lanes
     # combined_image = motion_detector.draw_lines(img_src, averaged_lines, 5)
-
     # cv2.imshow('image',combined_image)
     # cv2.waitKey(0)
 
-#  #For all images:
+   #For all images:
 
-#     for i in range(0,277):
-#         # print 'i',i
-#         img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
-#         print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
-#         motion_detector = cl.CornerMatch()
-
-#         image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
-#         cv2.imshow("corner match test",image)        
-#         print 'white vertex',white_vertex
-#         print 'green vertex',green_vertex
-
-#         cv2.waitKey(0)
+   #  for i in range(0,277):
+   #      # print 'i',i
+   #      img_src = cv2.imread('corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg')
+   #      print 'str','corner_match_sample/left'+"{0:0>4}".format(i)+'.jpg'
+   #      motion_detector = cl.CornerMatch()
+   #      image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
+   #      cv2.imshow("corner match test",image)        
+   #      print 'white vertex',white_vertex
+   #      print 'green vertex',green_vertex
+   #      cv2.waitKey(0)
 
 ###test 3: CornerMatch_new:
  ##For 1 image:
 
-      #   i=1
-
-
-
-      #   img_src = cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')
-      #   print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+      #   i=50
+      #   img_src = cv2.imread('diag_fold_sample2/left'+"{0:0>4}".format(i)+'.jpg')
+      #   print 'str','corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg'
       #   motion_detector = cl.CornerMatch_new()
-
       # #   skimage_src = img_as_float(img_src)
       # #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
       # #   img_src = img_as_ubyte(skimage)
-
       #   image,white_vertex,green_vertex = motion_detector.hsv_calc(img_src)
       #   cv2.imshow("corner match",image)        
       #   print 'white vertex',white_vertex
       #   print 'green vertex',green_vertex
-        
       #   cv2.waitKey(0)
-
 
  ##For all images:
 
-    for i in range(0,500):
-        # print 'i',i
-        img_src = cv2.imread('imgs_temp/left'+"{0:0>4}".format(i)+'.jpg')
-        print 'str','imgs_temp/left'+"{0:0>4}".format(i)+'.jpg'
-        motion_detector = cl.CornerMatch_new()
+   #  for i in range(0,500):
+   #      # print 'i',i
+   #      img_src = cv2.imread('diag_fold_sample2/left'+"{0:0>4}".format(i)+'.jpg')
+   #      print 'str','imgs_temp/left'+"{0:0>4}".format(i)+'.jpg'
+   #      motion_detector = cl.CornerMatch_new()
 
 
-        image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
-        cv2.imshow("corner match",image)        
-        print 'white vertex',white_vertex
-        print 'green vertex',green_vertex
+   #      image,white_vertex,green_vertex = motion_detector.mainFuc(img_src)
+   #      cv2.imshow("corner match",image)        
+   #      print 'white vertex',white_vertex
+   #      print 'green vertex',green_vertex
 
-        cv2.waitKey(0)
+   #      cv2.waitKey(0)
+
+###test 4: MatchFeatures:
+ ##For 1 image:
+
+      #   i=1
+      #   img_src1 = cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')
+      #   print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+
+      #   i=680
+      #   img_src2 = cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')
+      #   print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+
+      #   motion_detector = cl.MatchFeatures()
+      # #   skimage_src = img_as_float(img_src)
+      # #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+      # #   img_src = img_as_ubyte(skimage)
+      #   image = motion_detector.featureMatching(img_src1,img_src2)
+      #   cv2.imshow("featureMatching",image)        
+      #   cv2.waitKey(0)
+
+ ##For all images:
+
+      #   for index in range(1,191):
+      #    i = index*3
+      #    img_src1 = cv2.imread('corner_match_sample6/left'+"{0:0>4}".format(i)+'.jpg')
+      #    print 'str','corner_detect_img/left'+"{0:0>4}".format(i)+'.jpg'
+      #    j=i+3
+      #    img_src2 = cv2.imread('corner_match_sample6/left'+"{0:0>4}".format(j)+'.jpg')
+      #    print 'str','corner_detect_img/left'+"{0:0>4}".format(j)+'.jpg'
+
+      #    motion_detector = cl.MatchFeatures()
+
+      #    image = motion_detector.featureMatchingORB(img_src1,img_src2)
+      #    cv2.imshow("featureMatching",image)        
+      #    cv2.waitKey(0)
+
+      #   cv2.destroyAllWindows
+      #   exit()
+
+###test 5: ColorSegmentation:
+
+      # for i in range(100,1000):
+      #    # img_src= cv2.imread('diag_fold_sample2/left'+"{0:0>4}".format(i)+'.jpg')
+      #    img_src= cv2.imread('diag_fold_sample2/left'+"{0:0>4}".format(i)+'.jpg')      
+      #    print 'str','corner_match_sample2/left'+"{0:0>4}".format(i)+'.jpg'
+
+      #    motion_detector = cl.ColorSegmentation()
+      #    #   skimage_src = img_as_float(img_src)
+      #    #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+      #    #   img_src = img_as_ubyte(skimage)
+
+      #    # image = motion_detector.kmeansColor(img_src,clusters=3,rounds=5)
+      #    ## Shi-Tomasi method
+      #    image = motion_detector.goodFeaturesToTack(img_src)
+
+      #    cv2.imshow("goodFeature",image)        
+      #    cv2.waitKey(0)
+
+###test 6: CornerMatch_v3:
+      cv2.setUseOptimized(True)
+      for i in range(1,1000):
+         # img_src= cv2.imread('diag_fold_sample5/left'+"{0:0>4}".format(i)+'.jpg')
+         img_src= cv2.imread('diag_fold_sample4/left'+"{0:0>4}".format(i)+'.jpg')      
+         print 'str','corner_match_sample2/left'+"{0:0>4}".format(i)+'.jpg'
+
+         motion_detector1 = cl.CornerMatch_v3()
+         #   skimage_src = img_as_float(img_src)
+         #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+         #   img_src = img_as_ubyte(skimage)
+
+         # image = motion_detector.kmeansColor(img_src,clusters=3,rounds=5)
+         ## Shi-Tomasi method
+         _,image = motion_detector1.GetEdges(img_src)
+
+         cv2.imshow("CornerMatch_v2",image)        
+         cv2.waitKey(0)

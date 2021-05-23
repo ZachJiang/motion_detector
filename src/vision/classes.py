@@ -830,15 +830,15 @@ class CornerMatch_new:
         result_img_green = self.get_edge_lines(canny_img_green, mask_blue, mask_blue, 'top') # get close green line
 
         result_img_white = self.get_edge_lines(canny_img_white, mask_green, mask_blue, 'bottom') #get white line
-        cv2.imshow('canny detection green',result_img_green)
-        cv2.imshow('canny detection white line',result_img_white)
+        # cv2.imshow('canny detection green',result_img_green)
+        # cv2.imshow('canny detection white line',result_img_white)
 
 
         #step3: roi mask
         result_img2_white = self.ROI_mask(result_img_white,mask_paper)
-        cv2.imshow('roi region white',result_img2_white)
+        # cv2.imshow('roi region white',result_img2_white)
         result_img2_green = self.ROI_mask(result_img_green,mask_paper)
-        cv2.imshow('roi region green',result_img2_green)
+        # cv2.imshow('roi region green',result_img2_green)
 
         
 
@@ -1047,7 +1047,7 @@ class CornerMatch_new:
             result = cv2.bitwise_or(frame,frame,mask=mask)
 
             cv2.imshow("result",result)
-            cv2.imshow("mask",mask)
+            # cv2.imshow("mask",mask)
             key = cv2.waitKey(1)
             #press esc to exit
             if key == 27:
@@ -1194,3 +1194,549 @@ class CornerMatch_new:
             #         cv2.drawContours(result_img, [hull], 0, 255, 1)
 
         return result_img
+
+class MatchFeatures:
+
+    def SIFT(self, img_src):
+
+        image,_ = self.filter(img_src,'paper')
+        gray= cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+        sift = cv2.xfeatures2d.SIFT_create()
+        kp, des = sift.detectAndCompute(gray,None)
+        # kp = sift.detect(gray,None)
+        image=cv2.drawKeypoints(gray,kp,gray)
+        # cv2.imshow('sift_keypoints.jpg',image)
+
+        return image, kp
+    
+    def largestConnectComponent(self,bw_image):
+        '''
+        compute largest Connect component of an labeled image
+        Parameters:
+        ---
+        bw_image:
+            grey image in cv format
+        Example:
+        ---
+            >>> lcc = largestConnectComponent(bw_img)
+        '''
+        bw_img = img_as_float(bw_image)
+        thresh = threshold_otsu(bw_img)
+        binary = bw_image > thresh
+
+        labeled_img, num = label(binary, neighbors=4, background=0, return_num=True)    
+        # plt.figure(), plt.imshow(labeled_img, 'gray')
+        max_label = 0
+        max_num = 0
+        for i in range(1, num): # Start from 1 here to prevent the background from being set to the largest connected domain
+            if np.sum(labeled_img == i) > max_num:
+                max_num = np.sum(labeled_img == i)
+                max_label = i
+        lcc = (labeled_img == max_label)
+        cv_image = img_as_ubyte(lcc)
+        return cv_image
+
+    def filter(self,image,color):
+        blurr = cv2.GaussianBlur(image, (7, 7), 0)
+        blurr_hsv = cv2.cvtColor(blurr, cv2.COLOR_BGR2HSV)
+        #hsv color
+        if color == 'green':
+            # lowerG = (19,48,0)
+            lowerG = (24,0,39)
+            upperG = (96,255,255)
+            maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
+
+            maskG = cv2.GaussianBlur(maskG, (5, 5), 0)
+            mask = cv2.morphologyEx(maskG, cv2.MORPH_CLOSE, np.ones((19 ,19)))
+            result = cv2.bitwise_and(blurr_hsv,blurr_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)
+
+        elif color == 'white':
+
+            _,maskGW = self.filter(image, 'paper')
+            lowerG = (24,0,39)
+            upperG = (96,255,255)
+            maskG = cv2.inRange(blurr_hsv, lowerG, upperG)
+            maskNoG = cv2.bitwise_not(maskG)
+            mask = cv2.bitwise_and(maskGW,maskNoG)
+
+            # cv2.imshow('maskGW', maskGW)
+            # cv2.imshow('maskW', mask)
+
+            # mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((9 ,9)))            
+            result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR) 
+        elif color == 'red':
+            lowerR = (0,119,0)
+            upperR = (60,255,255)
+            mask = cv2.inRange(blurr_hsv, lowerR, upperR)
+            result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR) 
+        elif color == 'blue':
+            lowerB = (19,81,0)
+            upperB = (168,255,255)
+
+            kernel = np.ones((5,3),np.uint8)
+            mask = cv2.inRange(blurr_hsv, lowerB, upperB)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7 ,7)))
+            mask = cv2.dilate(mask,kernel,iterations = 3)
+
+            result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)         
+        elif color == 'paper':
+
+            # lowerRB = (0, 85, 0)
+            # upperRB = (179,255,255)
+
+            lowerRB = (0, 69, 0)
+            upperRB = (179,255,255)
+
+
+            maskRB =  cv2.inRange(blurr_hsv, lowerRB, upperRB)
+            mask = cv2.bitwise_not(maskRB)
+
+            lcc = self.largestConnectComponent(mask)
+            lcc = np.asarray(lcc, dtype="uint8")            
+            
+            mask = lcc
+            result = cv2.bitwise_or(blurr_hsv,blurr_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)            
+
+        return result, mask
+
+    def featureMatchingSIFT(self,img_src1,img_src2):
+        MIN_MATCH_COUNT = 10
+
+        image1,_ = self.filter(img_src1,'paper')
+        image2,_ = self.filter(img_src2,'paper')
+
+        img1 = cv2.cvtColor(image1,cv2.COLOR_BGR2GRAY)
+        img2 = cv2.cvtColor(image2,cv2.COLOR_BGR2GRAY)
+
+        sift = cv2.xfeatures2d.SIFT_create()
+        kp1,des1 = sift.detectAndCompute(img1,None)
+        kp2,des2 = sift.detectAndCompute(img2,None)
+
+        FLANN_INDEX_KDTREE = 1
+        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+        search_params = dict(checks = 50)
+
+        flann = cv2.FlannBasedMatcher(index_params, search_params)
+        matches = flann.knnMatch(des1,des2,k=2)
+
+        # store all the good matches as per Lowe's ratio test.
+        good = []
+        for m,n in matches:
+            if m.distance < 0.7*n.distance:
+                good.append(m)
+
+        if len(good)>MIN_MATCH_COUNT:
+            src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            matchesMask = mask.ravel().tolist()
+            print img1.shape
+            (h,w) = img1.shape
+            pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+            # dst = cv2.perspectiveTransform(pts,M)
+            # img2 = cv2.polylines(img2,[np.int32(dst)],True,255,3, cv2.LINE_AA)
+        else:
+            print( "Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT) )
+            matchesMask = None
+
+        draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+                   singlePointColor = None,
+                   matchesMask = matchesMask, # draw only inliers
+                   flags = 2)
+
+        img_comb = cv2.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
+        
+        return img_comb
+
+    def featureMatchingORB(self,img_src1,img_src2):
+        image1,_ = self.filter(img_src1,'paper')
+        image2,_ = self.filter(img_src2,'paper')
+
+        img1 = cv2.cvtColor(image1,cv2.COLOR_BGR2GRAY)
+        img2 = cv2.cvtColor(image2,cv2.COLOR_BGR2GRAY)
+
+        sift = cv2.ORB_create()
+        kp1,des1 = sift.detectAndCompute(img1,None)
+        kp2,des2 = sift.detectAndCompute(img2,None)
+
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+        matches = bf.match(des1,des2)
+        matches = sorted(matches, key = lambda x:x.distance)
+
+        draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+                   singlePointColor = None,
+                   matchesMask = None, # draw only inliers
+                   flags = 2)
+
+        img_comb = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,**draw_params)
+        
+        return img_comb
+
+class ColorSegmentation:
+
+    def kmeansColor(self, image, clusters=3, rounds=1):
+
+        blur = cv2.blur(image,(5,5))
+        blur0=cv2.medianBlur(blur,5)
+        blur1= cv2.GaussianBlur(blur0,(5,5),0)
+        blur2= cv2.bilateralFilter(blur1,9,75,75)  # make the image smooth
+        image = cv2.cvtColor(blur2, cv2.COLOR_BGR2HSV)
+
+        image1 = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+
+        h,w,_ = image.shape
+
+        samples = np.zeros([h*w,3], dtype=np.float32)
+        count = 0
+        for x in range(h):
+            for y in range(w):
+                samples[count] = image[x][y]
+                count += 1
+
+        compactness, labels, centers = cv2.kmeans(samples,clusters,None,
+                (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10000, 0.0001), 
+                rounds, cv2.KMEANS_RANDOM_CENTERS)
+
+        centers = np.uint8(centers)
+
+        flat_labels = labels.flatten()
+
+        mask_all = []
+        sum_all = []
+        for i in range(0,clusters):
+            mask_i = np.array(flat_labels == i).astype(int)
+            sum_i = np.sum(mask_i)
+            mask_all.append(mask_i)
+            sum_all.append(sum_i)
+        
+        print "sums", sum_all
+        max_i =  np.argmax(sum_all, axis=0)
+        print "i", max_i
+        # mask_test = np.array([[0,255,0],[0,0,255],[255,0,0]])
+        # print "image_test", mask_test
+
+        res1 = centers[mask_all[max_i]]
+        mask_background = 255*mask_all[max_i]
+        mask_reshape = np.uint8(mask_background.reshape((image.shape[0],image.shape[1])))
+        print "mask_shape", mask_reshape.shape
+        print "mask",mask_reshape
+        print "image1",image1
+        print "image1_shape",image1.shape
+        mask_reshape = np.bitwise_not(mask_reshape)
+        mask = cv2.cvtColor(mask_reshape, cv2.COLOR_GRAY2BGR)
+
+        return image1
+    
+    def goodFeaturesToTack(self,img):
+        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+        corners = cv2.goodFeaturesToTrack(gray,50,0.005,20)
+        corners = np.int0(corners)
+
+        for i in corners:
+            x,y = i.ravel()
+            cv2.circle(img,(x,y),3,255,-1)
+        return img
+        
+class CornerMatch_v3:
+    def GetEdges(self,image):
+        image = cv2.resize(image,(640,480), interpolation = cv2.INTER_AREA)
+        imgHSV = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        imgG = cv2.cvtColor(imgHSV, cv2.COLOR_BGR2GRAY)
+        imgO = cv2.morphologyEx(imgG, cv2.MORPH_OPEN, (11, 11))
+        imgC = cv2.morphologyEx(imgO, cv2.MORPH_CLOSE, (11, 11))
+        imgC = cv2.GaussianBlur(imgC,(9,9),0)
+
+        (_, imgC) = cv2.threshold(imgC, 200, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+       
+        imgC = cv2.bitwise_not(imgC)
+        mask_paper = self.largestConnectComponent(imgC)
+        line_out = self.auto_canny(mask_paper)
+
+        obj_img = cv2.bitwise_or(image,image,mask=mask_paper)
+
+        _,mask_green = self.color_filter(obj_img,'green')
+        _,mask_white = self.color_filter(obj_img,'white')
+
+        canny_white = self.auto_canny(mask_white)
+        canny_green = self.auto_canny(mask_green)
+
+     
+        cv2.imshow('outline',obj_img)        
+
+        # canny_white = self.ROI_gripper(image,canny_white)
+        # canny_green = self.ROI_gripper(image,canny_green)
+        canny_green = self.goodFeaturesToTack(canny_green)
+        canny_white = self.goodFeaturesToTack(canny_white)
+        cv2.imshow('white',canny_white)
+        cv2.imshow('green',canny_green)   
+
+        #step4: houghline transform and get intersection point
+        #a vertex is the intersection of two lines, return none if only one line
+        lines_white = cv2.HoughLinesP(canny_white,
+                                      rho=2,              #Distance resolution in pixels
+                                      theta=np.pi / 180,  #Angle resolution in radians
+                                      threshold=60,      #Min. number of intersecting points to detect a line
+                                      lines=np.array([]), #Vector to return start and end points of the lines indicated by [x1, y1, x2, y2]
+                                      minLineLength=2,   #Line segments shorter than this are rejected
+                                      maxLineGap=25       #Max gap allowed between points on the same line
+                                      )
+
+        lines_green = cv2.HoughLinesP(canny_green,
+                                      rho=2,              #Distance resolution in pixels
+                                      theta=np.pi / 180,  #Angle resolution in radians
+                                      threshold=60,      #Min. number of intersecting points to detect a line
+                                      lines=np.array([]), #Vector to return start and end points of the lines indicated by [x1, y1, x2, y2]
+                                      minLineLength=2,   #Line segments shorter than this are rejected
+                                      maxLineGap=25       #Max gap allowed between points on the same line
+                                      )
+        # print 'lines',lines
+        # if (lines_white is None) or (lines_green is None):
+        #     continue
+
+        if lines_green is None: 
+            averaged_lines_green = None
+        else:
+            # averaged_lines_green = self.avg_lines(img_src, lines_green)              #Average the Hough lines as left or right lanes
+            a = HoughBundler()
+            # print "green lines", lines_green
+            # previous: 140,50
+            merged_lines_green = a.process_lines(lines_green, mask_green, min_distance_to_merge =120, min_angle_to_merge = 55)        
+            out = np.empty(shape=[0, 4])
+            for line in merged_lines_green:
+                out = np.append(out,[[line[0][0], line[0][1], line[1][0], line[1][1]]],axis=0)
+            averaged_lines_green = out.astype(int)
+
+  
+        if lines_white is None: 
+            averaged_lines_white = None
+        else:
+            a = HoughBundler()
+            # print "green white", lines_white
+            # previous: 140,50
+            merged_lines_white = a.process_lines(lines_white, mask_white, min_distance_to_merge =120, min_angle_to_merge = 55)        
+            out = np.empty(shape=[0, 4])
+            for line in merged_lines_white:
+                out = np.append(out,[[line[0][0], line[0][1], line[1][0], line[1][1]]],axis=0)
+            averaged_lines_white = out.astype(int)
+
+        combined_image = self.draw_lines(image, averaged_lines_white,
+                                                    averaged_lines_green,5,
+                                                    color1=[0, 0, 255],color2=[0,255,255]) #draw line for white zone and green zone
+        # cv2.imshow('houghline transform',combined_image)
+
+        white_vertex = self.get_intersection_point(averaged_lines_white)
+        # print 'white vertex',white_vertex
+        green_vertex = self.get_intersection_point(averaged_lines_green)
+
+        return (green_vertex,white_vertex),combined_image
+    
+    def auto_canny(self,image, sigma=0.33):
+        # compute the median of the single channel pixel intensities
+        v = np.median(image)
+        # apply automatic Canny edge detection using the computed median
+        lower = int(max(0, (1.0 - sigma) * v))
+        upper = int(min(255, (1.0 + sigma) * v))
+        edged = cv2.Canny(image, lower, upper)
+        # return the edged image
+        return edged
+
+    def largestConnectComponent(self,bw_image):
+        '''
+        compute largest Connect component of an labeled image
+        Parameters:
+        ---
+        bw_image:
+            grey image in cv format
+        Example:
+        ---
+            >>> lcc = largestConnectComponent(bw_img)
+        '''
+        bw_img = img_as_float(bw_image)
+        thresh = threshold_otsu(bw_img)
+        binary = bw_image > thresh
+
+        labeled_img, num = label(binary, neighbors=4, background=0, return_num=True)    
+        # plt.figure(), plt.imshow(labeled_img, 'gray')
+        max_label = 0
+        max_num = 0
+        for i in range(1, num): # Start from 1 here to prevent the background from being set to the largest connected domain
+            if np.sum(labeled_img == i) > max_num:
+                max_num = np.sum(labeled_img == i)
+                max_label = i
+        lcc = (labeled_img == max_label)
+        cv_image = img_as_ubyte(lcc)
+        return cv_image
+    
+    def goodFeaturesToTack(self,gray_img):
+
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        corners = cv2.goodFeaturesToTrack(gray_img,6,0.001,30)
+        corners = np.int64(corners)
+
+        for i in corners:
+            x,y = i.ravel()
+            cv2.circle(gray_img,(x,y),6,255,-1)
+        return gray_img
+    
+    def ROI_gripper(self,src_img,mask_img):
+        lowerB = (97,97,0)
+        upperB = (163,255,255)
+
+        blurr = cv2.GaussianBlur(src_img, (3, 3), 0)
+        blurr_hsv = cv2.cvtColor(blurr, cv2.COLOR_BGR2HSV)
+
+        kernel = np.ones((19,19),np.uint8)
+        mask = cv2.inRange(blurr_hsv, lowerB, upperB)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((5 ,5)))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5 ,5)))
+        mask = cv2.dilate(mask,kernel,iterations = 6)
+        cv2.imshow('ROI',mask)
+        result = cv2.bitwise_and(mask_img,mask_img,mask=mask)
+        
+        return result
+
+    def color_filter(self,image,color):
+
+        image_bgr = image.copy()
+        image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        #hsv color
+        if color == 'green':
+            # lowerG = (19,48,0)
+            lowerG = (16,10,0)
+            upperG = (96,255,255)
+
+            lowerW = (0,100,100)
+            upperW = (255,255,255)
+
+            mask = cv2.inRange(image_hsv, lowerG, upperG)
+            maskW = cv2.inRange(image_bgr, lowerW, upperW)
+
+            maskX = cv2.bitwise_not(maskW)
+            mask = cv2.bitwise_and(maskX,mask)
+
+            result = cv2.bitwise_or(image_hsv,image_hsv,mask=mask)
+            result = cv2.cvtColor(result,cv2.COLOR_HSV2BGR)         
+
+        elif color == 'white':
+
+            lowerW = (0,100,100)
+            upperW = (255,255,255)
+            maskW = cv2.inRange(image_bgr, lowerW, upperW)
+
+            # cv2.imshow('maskGW', maskGW)
+            # cv2.imshow('maskW', mask)
+
+            # mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            mask = cv2.morphologyEx(maskW, cv2.MORPH_OPEN, np.ones((3 ,3)))            
+            result = cv2.bitwise_or(image_bgr,image_bgr,mask=mask)    
+
+        return result, mask
+        
+    def avg_lines(self,image, lines):
+
+        left = []
+        right = []
+
+        for line in lines:
+            x1, y1, x2, y2 = line.reshape(4)
+
+            # Fit polynomial, find intercept and slope
+            params = np.polyfit((x1, x2), (y1, y2), 1)
+            slope = params[0]
+            y_intercept = params[1]
+
+            # print 'slope',slope
+            # print 'y_intercept',y_intercept
+
+            if slope < 0:
+                left.append((slope, y_intercept)) #Negative slope = left lane
+            else:
+                right.append((slope, y_intercept)) #Positive slope = right lane
+
+        # Avg over all values for a single slope and y-intercept value for each line
+
+        left_avg = np.average(left, axis = 0)
+        right_avg = np.average(right, axis = 0)
+
+        # print 'lines',lines
+        # print 'left',left_avg
+        # print 'right',right_avg
+
+        if len(left)==0 and len(right)==0:
+            return np.array([])
+        elif len(left)==0 and len(right)>0:
+            right_line = self.get_coordinates(image, right_avg)
+            return np.array([right_line])
+        elif len(left)>0 and len(right)==0:
+            left_line = self.get_coordinates(image, left_avg)
+            return np.array([left_line])
+        else:
+            # Find x1, y1, x2, y2 coordinates for left & right lines
+            left_line = self.get_coordinates(image, left_avg)
+            right_line = self.get_coordinates(image, right_avg)
+            return np.array([left_line, right_line])
+
+    # Draws lines of given thickness over an image
+    def draw_lines(self,image, lines1, lines2,thickness, color1, color2):
+
+        # print(lines)
+        line_image = np.zeros_like(image)
+        # color=[0, 0, 255]
+
+
+        if lines1 is not None:
+            # print 'line',lines
+            for x1, y1, x2, y2 in lines1:
+                cv2.line(line_image, (x1, y1), (x2, y2), color1, thickness)
+        if lines2 is not None:
+            # print 'line',lines
+            for x1, y1, x2, y2 in lines2:
+                cv2.line(line_image, (x1, y1), (x2, y2), color2, thickness)
+
+        # Merge the image with drawn lines onto the original.
+        combined_image = cv2.addWeighted(image, 0.8, line_image, 1.0, 0.0)
+
+        return combined_image
+
+    def get_intersection_point(self,lines):
+        #get two lines intersection point
+        if lines is not None:
+            if len(lines) == 2:
+                intersection = su.line_intersect(lines[0][0],lines[0][1],
+                                                 lines[0][2],lines[0][3],
+                                                 lines[1][0],lines[1][1],
+                                                 lines[1][2],lines[1][3])
+                return intersection
+            else:
+                return None
+        else:
+            return None
+
+    def get_coordinates(self,image, params):
+
+        slope, intercept = params
+        y1 = image.shape[0]
+        y2 = int(y1 * (3/5)) # Setting y2 at 3/5th from y1
+        x1 = int((y1 - intercept) / slope) # Deriving from y = mx + c
+        x2 = int((y2 - intercept) / slope)
+
+        if abs(slope) < 0.001:
+            y1 = int(intercept)
+            y2 = int(intercept)
+            x1 = image.shape[1]
+            x2 = int(x1 * (3/5))
+
+        return np.array([x1, y1, x2, y2])
+
+
+        
+
+
