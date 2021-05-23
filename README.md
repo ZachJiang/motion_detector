@@ -9,6 +9,7 @@ Using usb_cam ROS package and cv_bridge for cv related process
 3. Need opencv-python 4.2 (pip install opencv-python==4.2.0.32) for python 2.7 
 
    To work with ROS Kinetic,you may need to config versions of opencv-python through running: 
+   
    $sudo ln -sf /home/zach/.local/lib/python2.7/site-packages/cv2.so /opt/ros/kinetic/lib/python2.7/dist-packages/cv2.so 
 ## references:
 https://blog.techbridge.cc/2016/11/26/ros-motion-detector/
