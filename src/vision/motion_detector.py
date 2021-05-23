@@ -36,7 +36,7 @@ class Motion:
 
         self.motion_detector1 = cl.GetTrans_new(pts_src,A)
         self.motion_detector2 = cl.GetCreases()
-        self.motion_detector3 = cl.CornerMatch_new()
+        self.motion_detector3 = cl.CornerMatch_v3()
         rospy.spin()
 
     def imageCallback1(self, image):
@@ -89,7 +89,7 @@ class Motion:
         cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         clean_image = cv_image.copy()
 
-        result_img3,vertex_w,vertex_g = self.motion_detector3.mainFuc(clean_image)
+        result_img3,vertex_w,vertex_g = self.motion_detector3.GetEdges(clean_image)
 
         image3 = self.bridge.cv2_to_imgmsg(result_img3)
         self.pub2.publish(image3)
