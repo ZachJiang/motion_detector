@@ -2,12 +2,16 @@
 import cv2
 import numpy as np
 import math
+import copy
 # Gets passed an approx contour list and finds if all the angles are 90 degrees
 
-def rightA(approx, thresh):
+def rightA(approx, thresh, side_view):
     right = True
     error = 0
     AL = len(approx)
+    # print 'approx',approx
+
+    new_approx = []
     for i in range(0, AL):
 
         x1 = approx[i % AL][0][0]
@@ -26,14 +30,102 @@ def rightA(approx, thresh):
         # angle1 = np.tanh(y2 - y1, x2 - x1)
         # angle2 = np.tanh(y3 - y2, x3 - x2)
 
-        dif = abs(angle - 90)
+        dif0 = abs(angle - 90)
+        dif1 = abs(angle - 45)
+        if dif0 <= dif1:
+            dif = dif0
+        else:
+            dif=dif1
+        # print 'l1',l1
+        # print 'l2',l2
+        # print 'dot',dot
+        # print 'norm l1',np.linalg.norm(l1)
+        # print 'norm l2',np.linalg.norm(l2)
+        # print 'angle',angle
+        # print 'dif',dif
+        # print 'dif0',dif0
+        # print 'dif1',dif1
+        # print 'tresh',thresh
+
+        if dif < thresh and dif == dif0 and len(new_approx)==0 and len(approx)==3 and side_view==0:
+            # print 'angle dif',angle
+            # new_approx.append((approx[(i + 2) % AL]).tolist())
+            # new_approx.append((approx[i % AL]).tolist())
+            # new_approx.append((approx[(i + 1) % AL]).tolist())
+            new_approx.append((approx[(i + 2) % AL]).tolist())
+            new_approx.append((approx[i % AL]).tolist())
+            new_approx.append((approx[(i + 1) % AL]).tolist())
+
+        elif len(approx)>3:
+            new_approx = approx
+
+        elif side_view == 1 and len(approx)==3 and len(new_approx)==0:
+            temp = copy.deepcopy(np.array(approx)[:,0])
+            temp = temp[:,0]
+            temp = temp.tolist()
+            x_min_index = temp.index(min(temp))
+            new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
+            new_approx.append((approx[(x_min_index+2) % AL]).tolist())
+            new_approx.append((approx[x_min_index % AL]).tolist())
+
         error += dif
 
         if dif > thresh:
             right = False
+    # print 'new approx',new_approx
+    return (right, error / AL, new_approx)
 
-    return (right, error / AL)
+def H_from_points(fp, tp):
+    """Find homography H, such that fp is mapped to tp using the linear
+       DLT method. Points are conditioned automatically.
+    """
+    if fp.shape != tp.shape:
+        raise RuntimeError('number of points do not match')
 
+    # Condition points
+    # --from points--
+    m = np.mean(fp[:2], axis=1)
+    maxstd = np.max(np.std(fp[:2], axis=1)) + 1e-9
+    C1 = np.diag([1 / maxstd, 1 / maxstd, 1])
+    C1[0][2] = -m[0] / maxstd
+    C1[1][2] = -m[1] / maxstd
+    fp = np.dot(C1, fp)
+
+    # --to points--
+    m = np.mean(tp[:2], axis=1)
+    maxstd = np.max(np.std(tp[:2], axis=1)) + 1e-9
+    C2 = np.diag([1 / maxstd, 1 / maxstd, 1])
+    C2[0][2] = -m[0] / maxstd
+    C2[0][1] = -m[1] / maxstd
+    tp = np.dot(C2, tp)
+
+    # create matrix for linear method, 2 rows for each corresponding pair
+    nbr_correspondences = fp.shape[1]
+    A = np.zeros((2 * nbr_correspondences, 9))
+    for i in range(nbr_correspondences):
+        A[2 * i] = [-fp[0][i],
+                    -fp[1][i],
+                    -1, 0, 0, 0,
+                    tp[0][i] * fp[0][i],
+                    tp[0][i] * fp[1][i],
+                    tp[0][i]]
+
+        A[2 * i + 1] = [0, 0, 0,
+                        -fp[0][i],
+                        -fp[1][i],
+                        -1,
+                        tp[1][i] * fp[0][i],
+                        tp[1][i] * fp[1][i],
+                        tp[1][i]]
+
+    U, S, V = np.linalg.svd(A)
+    H = V[8].reshape((3, 3))
+
+    # De-condition
+    H = np.dot(np.linalg.inv(C2), np.dot(H, C1))
+
+    # Normalize and return
+    return H
 
 def drawCircles(image, points, radius, color, thick):
     for i in range(0, len(points)):
@@ -137,7 +229,27 @@ def decHomography(A, H):
     R = U * V
 
     return (R, T)
-
+#
+# def decHomography1(K,H):
+#
+#     '''
+#     H is the homography matrix
+#     K is the camera calibration matrix
+#     T is translation
+#     R is rotation
+#     '''
+#     H = H.T
+#     h1 = H[0]
+#     h2 = H[1]
+#     h3 = H[2]
+#     K_inv = np.linalg.inv(K)
+#     L = 1 / np.linalg.norm(np.dot(K_inv, h1))
+#     r1 = L * np.dot(K_inv, h1)
+#     r2 = L * np.dot(K_inv, h2)
+#     r3 = np.cross(r1, r2)
+#     T = L * (K_inv@ h3.reshape(3, 1))
+#     R = np.array([[r1], [r2], [r3]])
+#     R = np.reshape(R, (3, 3))
 
 def print2Mat(arrayNum):
     iterNum = iter(arrayNum)
