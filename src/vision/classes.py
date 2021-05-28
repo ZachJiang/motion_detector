@@ -1663,7 +1663,7 @@ class MatchFeatures:
             dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
             matchesMask = mask.ravel().tolist()
-            print img1.shape
+            # print img1.shape
             (h,w) = img1.shape
             pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
             # dst = cv2.perspectiveTransform(pts,M)
@@ -1752,10 +1752,10 @@ class ColorSegmentation:
         res1 = centers[mask_all[max_i]]
         mask_background = 255*mask_all[max_i]
         mask_reshape = np.uint8(mask_background.reshape((image.shape[0],image.shape[1])))
-        print "mask_shape", mask_reshape.shape
-        print "mask",mask_reshape
-        print "image1",image1
-        print "image1_shape",image1.shape
+        # print "mask_shape", mask_reshape.shape
+        # print "mask",mask_reshape
+        # print "image1",image1
+        # print "image1_shape",image1.shape
         mask_reshape = np.bitwise_not(mask_reshape)
         mask = cv2.cvtColor(mask_reshape, cv2.COLOR_GRAY2BGR)
 
@@ -1779,11 +1779,17 @@ class CornerMatch_v3:
         imgG = cv2.cvtColor(imgHSV, cv2.COLOR_BGR2GRAY)
         imgO = cv2.morphologyEx(imgG, cv2.MORPH_OPEN, (11, 11))
         imgC = cv2.morphologyEx(imgO, cv2.MORPH_CLOSE, (11, 11))
-        imgC = cv2.GaussianBlur(imgC,(9,9),0)
+        # imgC = cv2.GaussianBlur(imgC,(9,9),0)
 
-        (_, imgC) = cv2.threshold(imgC, 200, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        (_, imgC) = cv2.threshold(imgC, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # (_, imgC) = cv2.threshold(imgG, 0, 50, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
        
         imgC = cv2.bitwise_not(imgC)
+
+
+        # merged_img = np.concatenate((image, cv2.cvtColor(imgG, cv2.COLOR_GRAY2BGR),cv2.cvtColor(imgC, cv2.COLOR_GRAY2BGR)), axis=1)
+        # cv2.imshow('result',merged_img)
+
         mask_paper = self.largestConnectComponent(imgC)
         line_out = self.auto_canny(mask_paper)
 
@@ -1800,8 +1806,8 @@ class CornerMatch_v3:
         # cv2.imshow('green',canny_green)        
         # cv2.imshow('outline',obj_img)        
 
-        canny_white = self.ROI_gripper(image,canny_white)
-        canny_green = self.ROI_gripper(image,canny_green)
+        canny_white,_ = self.ROI_gripper(image,canny_white)
+        canny_green,ROI_mask = self.ROI_gripper(image,canny_green)
         
         white_mask = cv2.dilate(canny_white,np.ones((4,4),np.uint8),iterations=4)
         common = cv2.bitwise_and(canny_green,white_mask)
@@ -1836,7 +1842,7 @@ class CornerMatch_v3:
         else:
             # averaged_lines_green = self.avg_lines(img_src, lines_green)              #Average the Hough lines as left or right lanes
             a = HoughBundler()
-            print "green lines", lines_green
+            # print "green lines", lines_green
             # previous: 140,50
             merged_lines_green = a.process_lines(lines_green, mask_green, min_distance_to_merge =130, min_angle_to_merge = 50)        
             out = np.empty(shape=[0, 4])
@@ -1849,7 +1855,7 @@ class CornerMatch_v3:
             averaged_lines_white = None
         else:
             a = HoughBundler()
-            print "white lines", lines_white
+            # print "white lines", lines_white
             # previous: 140,50
             merged_lines_white = a.process_lines(lines_white, mask_white, min_distance_to_merge =140, min_angle_to_merge = 40)        
             out = np.empty(shape=[0, 4])
@@ -1869,8 +1875,9 @@ class CornerMatch_v3:
         white_vertex = self.get_intersection_point(averaged_lines_white)
         # print 'white vertex',white_vertex
         green_vertex = self.get_intersection_point(averaged_lines_green)
-
-        return merged_img,white_vertex,green_vertex
+       
+        # ROI_mask = self.largestConnectComponent(ROI_mask)
+        return merged_img,white_vertex,green_vertex,canny_white
     
     def auto_canny(self,image, sigma=0.33):
         # compute the median of the single channel pixel intensities
@@ -1940,7 +1947,7 @@ class CornerMatch_v3:
         common = cv2.bitwise_and(canny_gripper,result)
         result = cv2.subtract(result,common)
         result = cv2.dilate(result,np.ones((3,3),np.uint8),iterations=3)
-        return result
+        return result,mask
 
     def color_filter(self,image,color):
         # image = cv2.fastNlMeansDenoisingColored(image,None,10,10,9,27)
@@ -2297,48 +2304,92 @@ class Predictor:
 
 
 class optical_flow:
-    def get_optical_flow(self,old_frame,frame):
+    def __init__(self):
 
-        feature_params = dict( maxCorners = 10,
-                       qualityLevel = 0.3,
+        self.feature_params = dict( maxCorners = 100,
+                       qualityLevel = 0.01,
                        minDistance = 7,
-                       blockSize = 7 )
+                       blockSize = 7)
 
         # Parameters for lucas kanade optical flow
-        lk_params = dict( winSize  = (15,15),
+        self.lk_params = dict( winSize  = (15,15),
                         maxLevel = 2,
                         criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
         # Create some random colors
-        color = np.random.randint(0,255,(100,3))
+        self.color = np.random.randint(0,255,(100,3))
+        self.count = 0
+        self.old_gray = None
+        self.p0 = None
+        self.mask = None
 
+    def get_optical_flow(self,frame,tip_mask):
         # Take first frame and find corners in it
-        ret, old_frame = cap.read()
-        old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-        p0 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
 
-        # Create a mask image for drawing purposes
-        mask = np.zeros_like(old_frame)
+        # tip_mask = cv2.dilate(tip_mask,np.ones((4,4),np.uint8),iterations=2)
+        tip_mask = cv2.erode(tip_mask,np.ones((4,4),np.uint8),iterations=1)
 
-        ########start something new
-        # print ret
-        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if self.count == 0:
+            
+            # frame_temp = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
+            # self.old_gray = cv2.cvtColor(frame_temp, cv2.COLOR_BGR2GRAY)
 
-        # calculate optical flow
-        p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
+            self.old_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            p0_temp = cv2.goodFeaturesToTrack(self.old_gray, mask = None, useHarrisDetector=False, **self.feature_params)
+            self.p0= []
+            p0_fill =[]
+            # print "p0_temp",p0_temp
+            # Create a mask image for drawing purposes
+            temp_figure = np.zeros_like(tip_mask)
+            points = p0_temp
+            num = 0
+            for i,point in enumerate(points):
+                a,b = point.ravel()
+                print 'a,b',a,b
+                point_color = tip_mask[int(b),int(a)]
+                if point_color >0:
+                    p0_fill.append([[a,b]])
+                    # print "p0_fill+++++++++++", p0_fill
+                    num = num+1
+                    
+            p0_fill = np.array(p0_fill)
+            print "=======",p0_fill
+            self.p0 = p0_fill
 
-        # Select good points
-        good_new = p1[st==1]
-        good_old = p0[st==1]
+            self.mask = np.zeros_like(frame)
+            self.count = self.count+1
+            return None
 
-        # draw the tracks
-        for i,(new,old) in enumerate(zip(good_new,good_old)):
-            a,b = new.ravel()
-            c,d = old.ravel()
-            mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
-            frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
-        img = cv2.add(frame,mask)
+        elif self.count > 0:
+            ########start something new
+            # print ret
+            # frame_temp = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
+            # frame_gray = cv2.cvtColor(frame_temp, cv2.COLOR_BGR2GRAY)
 
-        # Now update the previous frame and previous points
-        old_gray = frame_gray.copy()
-        p0 = good_new.reshape(-1,1,2)
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # calculate optical flow
+            p1, st, err = cv2.calcOpticalFlowPyrLK(self.old_gray, frame_gray, self.p0, None, **self.lk_params)
+
+            # Select good points
+            if p1 is not None:
+                good_new = p1[st==1]
+                good_old = self.p0[st==1]
+                print '========p0', self.p0[st==1]
+                print '========p1', p1[st==1]
+                # draw the tracks
+                for i,(new,old) in enumerate(zip(good_new,good_old)):
+                    a,b = new.ravel()
+                    c,d = old.ravel()
+                    self.mask = cv2.line(self.mask, (a,b),(c,d), self.color[i].tolist(), 2)
+                    frame = cv2.circle(frame,(a,b),5,self.color[i].tolist(),-1)
+                img = cv2.add(frame,self.mask)
+
+                # Now update the previous frame and previous points
+                self.old_gray = frame_gray.copy()
+                self.p0 = good_new.reshape(-1,1,2)
+                return img
+            else:
+                count = 0
+                return None
+
