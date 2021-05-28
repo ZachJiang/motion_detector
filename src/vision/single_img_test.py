@@ -170,10 +170,10 @@ if __name__ == '__main__':
       #    cv2.waitKey(0)
 
 ###test 6: CornerMatch_v3:
-      cv2.setUseOptimized(True)
+
       for i in range(1,1000):
          # img_src= cv2.imread('diag_fold_sample5/left'+"{0:0>4}".format(i)+'.jpg')
-         img_src= cv2.imread('diag_fold_sample4/left'+"{0:0>4}".format(i)+'.jpg')      
+         img_src= cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')      
          print 'str','corner_match_sample2/left'+"{0:0>4}".format(i)+'.jpg'
 
          motion_detector1 = cl.CornerMatch_v3()
@@ -183,7 +183,7 @@ if __name__ == '__main__':
 
          # image = motion_detector.kmeansColor(img_src,clusters=3,rounds=5)
          ## Shi-Tomasi method
-         _,image = motion_detector1.GetEdges(img_src)
+         image,_,_ = motion_detector1.GetEdges(img_src)
 
-         cv2.imshow("CornerMatch_v2",image)        
+         # cv2.imshow("CornerMatch_v2",image)        
          cv2.waitKey(0)

@@ -8,7 +8,7 @@ img_array = []
 file_list = []
 size = None
 
-for filename in glob.glob('./diag_fold_sample2/*.jpg'):
+for filename in glob.glob('./diag_fold_sample5/*.jpg'):
     file_list.append(filename)
 
 file_list.sort()
@@ -21,7 +21,7 @@ for i in file_list:
 
  
  
-out = cv2.VideoWriter('project002.avi',cv2.VideoWriter_fourcc(*'DIVX'), 15, size)
+out = cv2.VideoWriter('diag_fold_sample5.avi',cv2.VideoWriter_fourcc(*'DIVX'), 15, size)
  
 for i in range(len(img_array)):
     out.write(img_array[i])

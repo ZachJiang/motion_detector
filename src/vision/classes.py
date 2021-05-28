@@ -1877,7 +1877,7 @@ class CornerMatch_v3:
         green_vertex = self.get_intersection_point(averaged_lines_green)
        
         # ROI_mask = self.largestConnectComponent(ROI_mask)
-        return merged_img,white_vertex,green_vertex,canny_white
+        return merged_img,white_vertex,green_vertex,mask_white
     
     def auto_canny(self,image, sigma=0.33):
         # compute the median of the single channel pixel intensities
@@ -1934,12 +1934,12 @@ class CornerMatch_v3:
         blurr = cv2.GaussianBlur(src_img, (3, 3), 0)
         blurr_hsv = cv2.cvtColor(blurr, cv2.COLOR_BGR2HSV)
 
-        kernel = np.ones((19,19),np.uint8)
+        kernel = np.ones((29,29),np.uint8)
         mask = cv2.inRange(blurr_hsv, lowerB, upperB)
         canny_gripper = self.auto_canny(mask)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((5 ,5)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5 ,5)))
-        mask = cv2.dilate(mask,kernel,iterations = 2)
+        mask = cv2.dilate(mask,kernel,iterations = 4)
         # cv2.imshow('ROI',mask)
         result = cv2.bitwise_and(mask_img,mask_img,mask=mask)
         
@@ -2327,14 +2327,16 @@ class optical_flow:
         # Take first frame and find corners in it
 
         # tip_mask = cv2.dilate(tip_mask,np.ones((4,4),np.uint8),iterations=2)
-        tip_mask = cv2.erode(tip_mask,np.ones((4,4),np.uint8),iterations=1)
+        
+        tip_mask = cv2.dilate(tip_mask,np.ones((4,4),np.uint8),iterations=1)
 
         if self.count == 0:
-            
-            # frame_temp = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
-            # self.old_gray = cv2.cvtColor(frame_temp, cv2.COLOR_BGR2GRAY)
-
+                        
             self.old_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # (_, imgC) = cv2.threshold(self.old_gray, 225, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # self.old_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             p0_temp = cv2.goodFeaturesToTrack(self.old_gray, mask = None, useHarrisDetector=False, **self.feature_params)
             self.p0= []
             p0_fill =[]
@@ -2342,7 +2344,6 @@ class optical_flow:
             # Create a mask image for drawing purposes
             temp_figure = np.zeros_like(tip_mask)
             points = p0_temp
-            num = 0
             for i,point in enumerate(points):
                 a,b = point.ravel()
                 print 'a,b',a,b
@@ -2350,11 +2351,18 @@ class optical_flow:
                 if point_color >0:
                     p0_fill.append([[a,b]])
                     # print "p0_fill+++++++++++", p0_fill
-                    num = num+1
                     
             p0_fill = np.array(p0_fill)
-            print "=======",p0_fill
-            self.p0 = p0_fill
+
+            temp_x_max = 0
+            temp_y = 0
+            for i,point in enumerate(p0_fill):
+                a,b = point.ravel()
+                if a > temp_x_max:
+                    temp_x_max = a
+                    temp_y = b
+            print "=======",[temp_x_max,temp_y]
+            self.p0 = np.array([[[temp_x_max,temp_y]]])
 
             self.mask = np.zeros_like(frame)
             self.count = self.count+1
@@ -2382,13 +2390,15 @@ class optical_flow:
                     a,b = new.ravel()
                     c,d = old.ravel()
                     self.mask = cv2.line(self.mask, (a,b),(c,d), self.color[i].tolist(), 2)
-                    frame = cv2.circle(frame,(a,b),5,self.color[i].tolist(),-1)
-                img = cv2.add(frame,self.mask)
+                    frame = cv2.circle(frame,(a,b),5,[0,255,0],-1)
+                # img = cv2.add(frame,self.mask)
+                img = frame
+                merged_img = np.concatenate((img, cv2.cvtColor(tip_mask, cv2.COLOR_GRAY2BGR)), axis=1)
 
                 # Now update the previous frame and previous points
                 self.old_gray = frame_gray.copy()
                 self.p0 = good_new.reshape(-1,1,2)
-                return img
+                return merged_img
             else:
                 count = 0
                 return None
