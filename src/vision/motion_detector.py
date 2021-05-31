@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import message_filters
 import rospy
 import cv2
 import numpy as np
@@ -11,113 +12,12 @@ import time
 import classes as cl
 import tf
 import copy
-
-# class Motion:
-#     def __init__(self):
-#         rospy.init_node("motion_detector_node")
-#         self.bridge = CvBridge()
-#         self.pub1 = rospy.Publisher('camera/visible/image1', Image, queue_size=2)
-#         self.pub2 = rospy.Publisher('camera/visible/image2', Image, queue_size=2)
-#         self.pub3 = rospy.Publisher('cornerMatch/vertexG',Point, queue_size=2)
-#         self.pub4 = rospy.Publisher('cornerMatch/vertexW',Point, queue_size=2)
-
-#         # self.pub2 = rospy.Publisher()
-#         self.sub1 = rospy.Subscriber("usb_cam_h/image_raw", Image, self.imageCallback1)
-#         self.sub2 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback2)
-#         self.br = tf.TransformBroadcaster()
-        
-#         self.motion_detector0 = cl.ColorFilter()
-
-#         # pts_src must be ccw ; center is [0,0]
-#         # pts_src must be ccw ; center is [0,0]
-#         pts_src = np.array([[-145, -145], [145, -145], [145, 145], [-145, 145]])  #size of paper in real world, must be int && mm
-#         A = np.matrix([[741.2212917530331, 0, 311.8358797867751], 
-#                         [0, 741.2317153584389, 240.6847621777156], [0.0, 0.0, 1.0]])  #intrinsic parameters of camera
-
-
-#         self.motion_detector1 = cl.GetTrans_new(pts_src,A)
-#         self.motion_detector2 = cl.GetCreases()
-#         self.motion_detector3 = cl.CornerMatch_v3()
-#         rospy.spin()
-
-#     def imageCallback1(self, image):
-
-#         # if self.motion_detector2:
-#         cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-#         clean_image = cv_image.copy()
-#         image0 = self.motion_detector0.detect(cv_image)
-#         R_mat, (R,T), result_img1, img_perspCorr = self.motion_detector1.detect(image0, clean_image)
-#         # print "img", img_perspCorr.shape
-        
-
-#         result_img2 = None
-#         if img_perspCorr is not None:
-#             result_img2, crease_info = self.motion_detector2.detect(img_perspCorr)
-#             print 'crease info',crease_info
-
-
-#         if R is not None:
-#             # if abs(T[2]) <= 1000 :
-#             #     quaternion = tf.transformations.quaternion_from_euler(R[0], R[1], R[2], axes='sxyz')
-#             #     T = (T[0]/1000,T[1]/1000,T[2]/1000)
-#             #     self.br.sendTransform(T,quaternion,rospy.Time.now(),"paper","usb_cam1")
-
-#             if abs(T[2]) <= 1 :
-#                 quaternion = tf.transformations.quaternion_from_euler(R[0], R[1], R[2], axes='sxyz')
-#                 self.br.sendTransform(T,quaternion,rospy.Time.now(),"paper","usb_cam1")
-
-#                 # for line in crease_info:
-#                 #     p1 = line[0]
-#                 #     p2 = line[1]
-#                 #     p1.append(1)
-#                 #     p2.append(1)
-#                 #     rot_p1=np.dot(R,p1) + np.array(T)
-#                 #     rot_p2=np.dot(R,p2) + np.array(T)
-
-#                 # image = self.bridge.cv2_to_imgmsg(img_perspCorr,"bgr8")
-#                 # self.pub.publish(image)
-
- 
-#         if result_img2 is not None:
-#             image = self.bridge.cv2_to_imgmsg(result_img2)
-#         else: 
-#             image = self.bridge.cv2_to_imgmsg(result_img1)
-#         self.pub1.publish(image)
-
-#     def imageCallback2(self, image):
-
-#         # if self.motion_detector2:
-#         cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-#         clean_image = cv_image.copy()
-
-#         result_img3,vertex_w,vertex_g = self.motion_detector3.GetEdges(clean_image)
-
-#         image3 = self.bridge.cv2_to_imgmsg(result_img3)
-#         self.pub2.publish(image3)
-
-#         if vertex_g is not None:
-#             vertexG = Point()
-#             vertexG.x = vertex_g[0]
-#             vertexG.y = vertex_g[1]
-#             vertexG.z = -1
-#             self.pub3.publish(vertexG)
-#         else:
-#             vertexG = Point()
-#             vertexG.x = vertexG.y = vertexG.z =-1
-#             self.pub3.publish(vertexG)        
-#         if vertex_w is not None:
-#             vertexW = Point()
-#             vertexW.x = vertex_w[0]
-#             vertexW.y = vertex_w[1]
-#             vertexW.z = -1
-#             self.pub4.publish(vertexW)
-#         else:
-#             vertexW = Point()
-#             vertexW.x = vertexW.y = vertexW.z = -1
-#             self.pub4.publish(vertexW)  
+from std_msgs.msg import UInt16
 
 class Motion:
     def __init__(self):
+        global start
+        start = 0
         #step1: initialize node, publishers, subscribers
         rospy.init_node("motion_detector_node")
         self.bridge = CvBridge()
@@ -127,22 +27,28 @@ class Motion:
 
         self.pub3 = rospy.Publisher('cornerMatch/vertexG',Point, queue_size=2)
         self.pub4 = rospy.Publisher('cornerMatch/vertexW',Point, queue_size=2)
+
         self.pub5 = rospy.Publisher('cornerMatch/MidPoint',Point, queue_size=2)
         self.sub1 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback2)
 
         self.br = tf.TransformBroadcaster()
         self.MidPoint = None
+
         #step2: get the paper's position (main class: GetTrans_new)
-        pts_src = [[0, 0], [145, 0], [0, 145]] #could be generated by class Predictor
+        pts_src = [[0, 0], [290, 0], [0, 290]] #could be generated by class Predictor
         # pts_src = pts_src[::-1]
         A = np.matrix([[741.2212917530331, 0, 311.8358797867751],
                        [0, 741.2317153584389, 240.6847621777156], [0.0, 0.0, 1.0]])  #intrinsic parameters of camera
         self.motion_detector1 = cl.GetTrans_new(pts_src,A)
         self.motion_detector3 = cl.CornerMatch_v3()
-        # self.sub3 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback3)
+        self.sub3 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback3)
 
-        self.sub6 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback6)
+
+        self.sub7 = rospy.Subscriber("cornerMatch/startOpticalFlow", UInt16,self.imageCallback7)
         self.pub6 = rospy.Publisher('camera/visible/opticalFlow', Image, queue_size=2)
+        self.sub6 = rospy.Subscriber("usb_cam_k/image_raw", Image,self.imageCallback6)     
+        
+
         self.bridge = CvBridge()
         self.motion_detector6 = cl.optical_flow()
         self.tip_mask = None
@@ -189,63 +95,79 @@ class Motion:
         image3 = self.bridge.cv2_to_imgmsg(result_img3)
         self.pub2.publish(image3)
 
-        if vertex_g is not None:
-            vertexG = Point()
-            vertexG.x = vertex_g[0]
-            vertexG.y = vertex_g[1]
-            vertexG.z = -1
-            self.pub3.publish(vertexG)
+        # if vertex_g is not None:
+        #     vertexG = Point()
+        #     vertexG.x = vertex_g[0]
+        #     vertexG.y = vertex_g[1]
+        #     vertexG.z = -1
+        #     self.pub3.publish(vertexG)
+        # else:
+        #     vertexG = Point()
+        #     vertexG.x = vertexG.y = vertexG.z =-1
+        #     self.pub3.publish(vertexG)
+        # if vertex_w is not None:
+        #     vertexW = Point()
+        #     vertexW.x = vertex_w[0]
+        #     vertexW.y = vertex_w[1]
+        #     vertexW.z = -1
+        #     self.pub4.publish(vertexW)
+        # else:
+        #     vertexW = Point()
+        #     vertexW.x = vertexW.y = vertexW.z = -1
+        #     self.pub4.publish(vertexW)
+
+
+    def imageCallback3(self,image):
+        cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+        clean_image = cv_image.copy()
+        # clean_image0 = copy.deepcopy(cv_image)
+        # motion_detector4 = cl.GetCreases()
+        # crease_img,line=motion_detector4.detect(clean_image0)
+        # crease_img0 = self.bridge.cv2_to_imgmsg(crease_img)
+        # self.pub6.publish('crease img',crease_img0)
+        is_blue=self.motion_detector1.detect_blue(clean_image) #if there is blue color, return 1
+        # print 'if blue',is_blue
+        # self.MidPoint = None
+        # print 'pts src',self.motion_detector1.pts_src
+        pt1 = copy.deepcopy(self.motion_detector1.pts_src[0])
+        pt2 = copy.deepcopy(self.motion_detector1.pts_src[1])
+        mid_point,result_img, image2 = self.motion_detector1.detect_mid_point(clean_image,pt1,pt2)
+
+        if mid_point is not None and is_blue==0:
+            MidPoint = Point()
+            MidPoint.x = mid_point[0]
+            MidPoint.y = mid_point[1]
+            MidPoint.z = mid_point[2]
+            print 'mid point',mid_point
+            self.MidPoint = MidPoint
+            self.pub5.publish(MidPoint)
+
+            image = self.bridge.cv2_to_imgmsg(result_img)
+            image3 = self.bridge.cv2_to_imgmsg(image2)
+            self.pub1.publish(image)
+            self.pub2.publish(image3)
         else:
-            vertexG = Point()
-            vertexG.x = vertexG.y = vertexG.z =-1
-            self.pub3.publish(vertexG)
-        if vertex_w is not None:
-            vertexW = Point()
-            vertexW.x = vertex_w[0]
-            vertexW.y = vertex_w[1]
-            vertexW.z = -1
-            self.pub4.publish(vertexW)
-        else:
-            vertexW = Point()
-            vertexW.x = vertexW.y = vertexW.z = -1
-            self.pub4.publish(vertexW)
-
-
-    # def imageCallback3(self,image):
-    #     cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-    #     clean_image = cv_image.copy()
-    #     is_blue=self.motion_detector1.detect_blue(clean_image) #if there is blue color, return 1
-    #     # print 'if blue',is_blue
-    #     # self.MidPoint = None
-    #     # print 'pts src',self.motion_detector1.pts_src
-    #     pt1 = copy.deepcopy(self.motion_detector1.pts_src[0])
-    #     pt2 = copy.deepcopy(self.motion_detector1.pts_src[1])
-    #     mid_point,result_img, image2 = self.motion_detector1.detect_mid_point(clean_image,pt1,pt2)
-
-    #     if mid_point is not None and is_blue==0:
-    #         MidPoint = Point()
-    #         MidPoint.x = mid_point[0]
-    #         MidPoint.y = mid_point[1]
-    #         MidPoint.z = mid_point[2]
-    #         print 'mid point',mid_point
-    #         self.MidPoint = MidPoint
-    #         self.pub5.publish(MidPoint)
-
-    #         image = self.bridge.cv2_to_imgmsg(result_img)
-    #         # image3 = self.bridge.cv2_to_imgmsg(image2)
-    #         self.pub1.publish(image)
-    #         # self.pub2.publish(image3)
-    #     else:
-    #         if self.MidPoint is not None:
-    #             self.pub5.publish(self.MidPoint)
+            if self.MidPoint is not None:
+                self.pub5.publish(self.MidPoint)
 
     def imageCallback6(self,image):
-        cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+        if start > 0:
+            print "+++++++test2"
+            cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+            img,vertex_W=self.motion_detector6.get_optical_flow(cv_image,self.tip_mask) 
+            if img is not None:
+                image = self.bridge.cv2_to_imgmsg(img)
+                self.pub6.publish(image)
+                vertexW = Point()
+                vertexW.x = vertex_W[0][0]
+                vertexW.y = vertex_W[0][1]
+                vertexW.z = -1
+                self.pub4.publish(vertexW)
 
-        img=self.motion_detector6.get_optical_flow(cv_image,self.tip_mask) #if there is blue color, return 1
-        if img is not None:
-            image = self.bridge.cv2_to_imgmsg(img)
-            self.pub6.publish(image)
+    def imageCallback7(self,msg):
+        # print "+++++++test1", int(msg.data)
+        global start 
+        start = int(msg.data)
 
 if __name__ == '__main__':
     detector = Motion()

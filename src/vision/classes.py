@@ -65,8 +65,8 @@ class ColorFilter:
     # cm = CornerMatch_new()
     # mask_paper =cm.largestConnectComponent(imgC)
     mask = copy.deepcopy(mask_paper)
-    mask[np.where(mask_paper == [255])] = [0]
-    mask[np.where(mask_paper == [0])] = [255]
+    mask[np.where(mask_paper == [255])] = [255]
+    mask[np.where(mask_paper == [0])] = [0]
     # new_mask = cm.largestConnectComponent(mask)
 
     return mask
@@ -186,6 +186,7 @@ class GetTrans_new:
         self.bridge = CvBridge()
         self.pub1 = rospy.Publisher('camera/mid_point_warpPerspective', Image, queue_size=2)
         self.pub2 = rospy.Publisher('camera/paper_filter', Image, queue_size=2)
+        self.pub3 = rospy.Publisher('camera/contour_image', Image, queue_size=2)
 
     def mainFunc(self):
         cap = cv2.VideoCapture(1)
@@ -224,7 +225,7 @@ class GetTrans_new:
         #out.release()
         cv2.destroyAllWindows()
 
-    def detect_mid_point(self,frame,pt_src1,pt_src2):
+    def detect_mid_point_old(self,frame,pt_src1,pt_src2):
         #detect the mid point of a line, used in corner match
         #step1: get the homography matrix
 
@@ -235,11 +236,12 @@ class GetTrans_new:
         paper_filter_image = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame1))
         self.pub2.publish(paper_filter_image)
 
-        h_mat, (R,T), result_img1, img2, mid_persp= self.detect_new(frame1,side_view=1)
+        h_mat, (R,T), result_img1, img2, mid_persp= self.detect_new(frame1,side_view=2)
         self.mid_point = None
-        print 'h_mat',h_mat
-        image = self.bridge.cv2_to_imgmsg(img2)
-        self.pub1.publish(image)
+        # print 'h_mat',h_mat
+        if img2 is not None:
+            image = self.bridge.cv2_to_imgmsg(img2)
+            self.pub1.publish(image)
 
         #step2: get pt_dst1 and pt_dst2
         if h_mat is not None:
@@ -253,8 +255,8 @@ class GetTrans_new:
             pt_dst2 = np.dot(h_mat,pt_src2)
 
             #step3: get the mid point
-            # mid_point = [int((pt_dst1[0]+pt_dst2[0])/2),int((pt_dst1[1]+pt_dst2[1])/2),0]
-            mid_point = [int(0.3*pt_dst1[0]+0.7*pt_dst2[0]),int(0.3*pt_dst1[1]+0.7*pt_dst2[1]),0]
+            mid_point = [int((pt_dst1[0]+pt_dst2[0])/2),int((pt_dst1[1]+pt_dst2[1])/2),0]
+            # mid_point = [int(0.3*pt_dst1[0]+0.7*pt_dst2[0]),int(0.3*pt_dst1[1]+0.7*pt_dst2[1]),0]
             ori_point = np.dot(h_mat,(0,0,1))
             cv2.circle(frame, (int(mid_point[0]), int(mid_point[1])), 5, (0, 0, 255), 2)
             cv2.circle(frame, (int(ori_point[0]), int(ori_point[1])), 5, (0, 255, 255), 2)
@@ -262,6 +264,47 @@ class GetTrans_new:
             self.mid_point = mid_point
 
             return mid_point,frame, img2
+        else:
+            return None,None, None
+
+    def detect_mid_point(self,frame,pt_src1,pt_src2,side_view=2):
+        #detect the mid point of a line, used in corner match
+        #step1: get the homography matrix
+
+        motion_detector0 = ColorFilter()
+        frame0 = copy.deepcopy(frame)
+        # cv2.imshow('frame0',frame0)
+        frame1=motion_detector0.paper_filter(frame0)
+        paper_filter_image = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame1))
+        self.pub2.publish(paper_filter_image)
+
+        h_mat, (R,T), result_img1, img2, mid_persp= self.detect_new(frame1,side_view)
+        self.mid_point = None
+        # print 'h_mat',h_mat
+        if img2 is not None:
+            image = self.bridge.cv2_to_imgmsg(img2)
+            self.pub1.publish(image)
+
+        #step2: get pt_dst1 and pt_dst2
+        if h_mat is not None:
+            pt_src1.append(1)
+            pt_src2.append(1)
+            pt_src1 = np.array(pt_src1)
+            pt_src2 = np.array(pt_src2)
+            # print 'pts1',pt_src1
+            # print 'pts2',pt_src2
+            pt_dst1 = np.dot(h_mat,pt_src1)
+            pt_dst2 = np.dot(h_mat,pt_src2)
+
+            #step3: get and draw the two points
+            tar_point = [int(pt_dst2[0]),int(pt_dst2[1]),0]
+            ori_point = [int(pt_dst1[0]),int(pt_dst1[1]),0]
+            cv2.circle(frame, (int(tar_point[0]), int(tar_point[1])), 5, (0, 0, 255), 2)
+            cv2.circle(frame, (int(ori_point[0]), int(ori_point[1])), 5, (0, 255, 255), 2)
+            # cv2.circle(frame, (int(mid_persp[0]), int(mid_persp[1])), 10, (0, 255, 0), 2)
+            self.tar_point = tar_point
+
+            return tar_point,frame, img2
         else:
             return None,None, None
 
@@ -331,13 +374,13 @@ class GetTrans_new:
         pubn.publish(blue_mask2)
 
         mask_value = np.sum(blue_mask1)
-        print 'mask value',mask_value
+        # print 'mask value',mask_value
         if mask_value<300:
             return 0
         else:
             return 1
 
-    def detect_new(self, frame, side_view=0):
+    def detect_new(self, frame, side_view=2):
         A = self.A
         pts_src = copy.deepcopy(self.pts_src)
         R, T = None, None
@@ -347,7 +390,9 @@ class GetTrans_new:
         (cont, _)=cv2.findContours(imgC.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # (_,cont, _) = cv2.findContours(imgC.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         # print 'cont num',len(cont)
-        frame = cv2.drawContours(frame,cont,-1,(0,0,255),3)
+        frame = cv2.drawContours(frame,cont,-1,(0,255,255),20)
+        contour_img = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame))
+        self.pub3.publish(contour_img)
         best_approx = None
         lowest_error = float("inf")
 
@@ -355,12 +400,12 @@ class GetTrans_new:
         for c in cont:
             pts_dst = []
             perim = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, .1 * perim, True)
+            approx = cv2.approxPolyDP(c, .01 * perim, True)
             area = cv2.contourArea(c)
             # print 'pts src',pts_src
-            # print 'len approx',approx
+            # print 'approx',approx
 
-            if len(approx) == len(self.pts_src):
+            if len(approx) == len(self.pts_src) and area>30000:
                 right, error, new_approx = su.rightA(approx, 70,side_view) #80#change the thresh if not look vertically
                 # print(right)
                 new_approx = np.array(new_approx)
@@ -369,7 +414,7 @@ class GetTrans_new:
                     lowest_error = error
                     best_approx = new_approx
 
-        if best_approx is not None:
+        if best_approx is not None and frame is not None:
             cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
 
             for i in range(0, len(best_approx)):
@@ -2306,7 +2351,7 @@ class Predictor:
 class optical_flow:
     def __init__(self):
 
-        self.feature_params = dict( maxCorners = 100,
+        self.feature_params = dict( maxCorners = 200,
                        qualityLevel = 0.01,
                        minDistance = 7,
                        blockSize = 7)
@@ -2328,7 +2373,7 @@ class optical_flow:
 
         # tip_mask = cv2.dilate(tip_mask,np.ones((4,4),np.uint8),iterations=2)
         
-        tip_mask = cv2.dilate(tip_mask,np.ones((4,4),np.uint8),iterations=1)
+        tip_mask = cv2.dilate(tip_mask,np.ones((6,6),np.uint8),iterations=2)
 
         if self.count == 0:
                         
@@ -2346,7 +2391,7 @@ class optical_flow:
             points = p0_temp
             for i,point in enumerate(points):
                 a,b = point.ravel()
-                print 'a,b',a,b
+                # print 'a,b',a,b
                 point_color = tip_mask[int(b),int(a)]
                 if point_color >0:
                     p0_fill.append([[a,b]])
@@ -2366,7 +2411,7 @@ class optical_flow:
 
             self.mask = np.zeros_like(frame)
             self.count = self.count+1
-            return None
+            return None, None
 
         elif self.count > 0:
             ########start something new
@@ -2391,15 +2436,15 @@ class optical_flow:
                     c,d = old.ravel()
                     self.mask = cv2.line(self.mask, (a,b),(c,d), self.color[i].tolist(), 2)
                     frame = cv2.circle(frame,(a,b),5,[0,255,0],-1)
-                # img = cv2.add(frame,self.mask)
-                img = frame
+                img = cv2.add(frame,self.mask)
+                # img = frame
                 merged_img = np.concatenate((img, cv2.cvtColor(tip_mask, cv2.COLOR_GRAY2BGR)), axis=1)
 
                 # Now update the previous frame and previous points
                 self.old_gray = frame_gray.copy()
                 self.p0 = good_new.reshape(-1,1,2)
-                return merged_img
+                return img, self.p0[st==1]
             else:
-                count = 0
-                return None
+                self.count = 0
+                return None, None
 
