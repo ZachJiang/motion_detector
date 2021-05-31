@@ -1,22 +1,22 @@
 <launch>
 
   <!-- Launch the motion detector node for image processing. -->
-  <node pkg="motion_detector" name="MotionDetector" type="motion_detector.py" 
-      args="-d $(find motion_detector)/src/motion_detector.py" output='screen'/>
+  <!-- <node pkg="motion_detector" name="MotionDetector" type="motion_detector.py" 
+      args="-d $(find motion_detector)/src/motion_detector.py" output='screen'/> -->
   <!-- may set args: output='screen'-->
 
   <!-- Launch the driver node for our usb camera. -->
-  <node name="usb_cam_h" pkg="usb_cam" type="usb_cam_node" output="screen" >
+  <!-- <node name="usb_cam_h" pkg="usb_cam" type="usb_cam_node" output="screen" >
    <param name="video_device" value="/dev/video1" />
    <param name="image_width" value="1280" />
    <param name="image_height" value="720" />
    <param name="pixel_format" value="yuyv" />
    <param name="camera_frame_id" value="usb_cam_h" />
    <param name="io_method" value="mmap"/>
-  </node>
+  </node> -->
 
   <node name="usb_cam_k" pkg="usb_cam" type="usb_cam_node" output="screen" >
-   <param name="video_device" value="/dev/video2" />
+   <param name="video_device" value="/dev/video1" />
    <param name="image_width" value="1280" />
    <param name="image_height" value="720" />
    <param name="pixel_format" value="yuyv" />
