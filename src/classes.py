@@ -185,114 +185,16 @@ class GetTrans_new:
     def __init__(self,pts_src,A):
 
         self.A = A
-        self.pts_src = pts_src[::-1] # reverse the order of the array
-        self.bridge = CvBridge()
+        self.pts_src = pts_src # reverse the order of the array
         self.motion_detector0 = ColorFilter()
-        self.pub1 = rospy.Publisher('camera/mid_point_warpPerspective', Image, queue_size=2)
-        self.pub2 = rospy.Publisher('camera/paper_filter', Image, queue_size=2)
-        self.pub3 = rospy.Publisher('camera/contour_image', Image, queue_size=2)
-        self.pub4 = rospy.Publisher('camera/homo_image', Image, queue_size=2)
 
-        # self.sub1 = rospy.Subscriber("usb_cam_h/image_raw", Image, self.mainFunc)
-
-    def mainFunc_old(self):
-        cap = cv2.VideoCapture(-1)
-        print 'is open',cap.isOpened() # True
-        # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'))
-        # cap = cv2.VideoCapture('output.avi')
-        pts_src = self.pts_src
-        A = self.A
-        trans = []
-
-        while(True):
-            _, frame = cap.read()
-            # motion_detector = cl.CornerMatch_new()
-            # motion_detector.hsv_calc(frame)
-            # print 'size',frame.shape
-            motion_detector0 = ColorFilter()
-            frame0 = copy.deepcopy(frame)
-            frame0=motion_detector0.paper_filter(frame0)
-            motion_detector = GetTrans_new(pts_src,A)
-            R_mat, (R,T), result_img1, img2= motion_detector.detect(frame0, frame0, side_view=0)
-            # print 'shapeT',T.shape
-            if T is not None:
-                T = [T[0][0],T[1][0],T[2][0]]
-                trans.append(T)
-            # cv2.imshow('image',result_img1)
-            # cv2.imshow('mask',frame0)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        self.R_mat = R_mat
-        self.R = R
-        self.trans = trans
-        self.T = self.delete_anomalies(trans)
-        cap.release()
-        #out.release()
-        cv2.destroyAllWindows()
-
-    def detect_mid_point_old(self,frame,pt_src1,pt_src2):
+    def detect_mid_point(self,frame,pt_src1,pt_src2,view):
         #detect the mid point of a line, used in corner match
         #step1: get the homography matrix
-
-        motion_detector0 = ColorFilter()
-        frame0 = copy.deepcopy(frame)
-        # cv2.imshow('frame0',frame0)
-        frame1=motion_detector0.paper_filter(frame0)
-        paper_filter_image = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame1))
-        self.pub2.publish(paper_filter_image)
-
-        h_mat, (R,T), result_img1, img2, mid_persp= self.detect_new(frame1,side_view=2)
-        self.mid_point = None
-        # print 'h_mat',h_mat
-        if img2 is not None:
-            image = self.bridge.cv2_to_imgmsg(img2)
-            self.pub1.publish(image)
-
-        #step2: get pt_dst1 and pt_dst2
-        if h_mat is not None:
-            pt_src1.append(1)
-            pt_src2.append(1)
-            pt_src1 = np.array(pt_src1)
-            pt_src2 = np.array(pt_src2)
-            # print 'pts1',pt_src1
-            # print 'pts2',pt_src2
-            pt_dst1 = np.dot(h_mat,pt_src1)
-            pt_dst2 = np.dot(h_mat,pt_src2)
-
-            #step3: get the mid point
-            mid_point = [int((pt_dst1[0]+pt_dst2[0])/2),int((pt_dst1[1]+pt_dst2[1])/2),0]
-            # mid_point = [int(0.3*pt_dst1[0]+0.7*pt_dst2[0]),int(0.3*pt_dst1[1]+0.7*pt_dst2[1]),0]
-            ori_point = np.dot(h_mat,(0,0,1))
-            cv2.circle(frame, (int(mid_point[0]), int(mid_point[1])), 5, (0, 0, 255), 2)
-            cv2.circle(frame, (int(ori_point[0]), int(ori_point[1])), 5, (0, 255, 255), 2)
-            # cv2.circle(frame, (int(mid_persp[0]), int(mid_persp[1])), 10, (0, 255, 0), 2)
-            self.mid_point = mid_point
-
-            return mid_point,frame, img2
-        else:
-            return None,None, None
-
-    def detect_mid_point(self,frame,pt_src1,pt_src2,side_view=3):
-        #detect the mid point of a line, used in corner match
-        #step1: get the homography matrix
-
-        motion_detector0 = ColorFilter()
         frame0 = frame.copy()
-        # cv2.imshow('frame0',frame0)
-        # print "midpoint input img info ", frame.shape
-        # frame1=motion_detector0.paper_filter(frame0)
-        print "frame0 input img info", frame0.shape
-        # paper_filter_image = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame1))
-        # self.pub2.publish(paper_filter_image)
-
-        h_mat, (R,T), result_img1, img2, mid_persp= self.detect_new(frame0,side_view)
+        h_mat, (R,T), result_img1, filter_frame, img_warp= self.detect_new(frame0,view)
         self.mid_point = None
         print 'h_mat',h_mat
-        if img2 is not None:
-            image = self.bridge.cv2_to_imgmsg(img2)
-            self.pub1.publish(image)
 
         #step2: get pt_dst1 and pt_dst2
         if h_mat is not None:
@@ -302,8 +204,8 @@ class GetTrans_new:
             pt_src2 = np.array(pt_src2)
             # print 'pts1',pt_src1
             # print 'pts2',pt_src2
-            pt_dst1 = np.dot(h_mat,pt_src1)
-            pt_dst2 = np.dot(h_mat,pt_src2)
+            pt_dst1 = self.transformReversePoints(pt_src1[0],pt_src1[1],h_mat)
+            pt_dst2 = self.transformReversePoints(pt_src2[0],pt_src2[1],h_mat)
 
             #step3: get and draw the two points
             tar_point = [int(pt_dst2[0]),int(pt_dst2[1]),0]
@@ -313,9 +215,9 @@ class GetTrans_new:
             # cv2.circle(frame, (int(mid_persp[0]), int(mid_persp[1])), 10, (0, 255, 0), 2)
             self.tar_point = tar_point
 
-            return tar_point,frame, img2
+            return tar_point,frame, result_img1, filter_frame, img_warp
         else:
-            return None,None, None
+            return None,None,None,None,None
 
     # Function to Detection Outlier on one-dimentional datasets.
     def delete_anomalies(self,data):
@@ -377,11 +279,6 @@ class GetTrans_new:
         # lower_blue = (97,97,0)
         # upper_blue = (163,255,255)
         blue_mask1 = cv2.inRange(image1, lower_blue, upper_blue)
-
-        pubn = rospy.Publisher('camera/visible/image4', Image, queue_size=2)
-        blue_mask2=self.bridge.cv2_to_imgmsg(blue_mask1)
-        pubn.publish(blue_mask2)
-
         mask_value = np.sum(blue_mask1)
         # print 'mask value',mask_value
         if mask_value<300:
@@ -417,24 +314,18 @@ class GetTrans_new:
                 Z = 1/tz
             return (px,py)
 
-    def detect_new(self, frame, side_view):
+    def detect_new(self, frame, view):
         # print "frame input info", frame.shape
         A = self.A
         pts_src = copy.deepcopy(self.pts_src)
         R, T = None, None
         im_perspCorr = None # black_image (300,300,3)   np.zeros((300,300,3), np.uint8)
         frame0 = frame.copy()
-        print "frame0 info", type(frame0),frame0.shape
-        frame1_test = cv2.cvtColor(frame0,cv2.COLOR_BGR2HSV)
-        frame1=self.motion_detector0.paper_filter(frame0)
-        frame1_pub = self.bridge.cv2_to_imgmsg(frame1)
-        self.pub2.publish(frame1_pub)
-        imgC = cv2.Canny(frame1, 50, 60)
+        # add object mask and detect contour
+        filter_frame=self.motion_detector0.paper_filter(frame0)
+        imgC = cv2.Canny(filter_frame, 50, 60)
         imgC = cv2.morphologyEx(imgC, cv2.MORPH_CLOSE, (3, 3))
         (cont, _)=cv2.findContours(imgC.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # frame = cv2.drawContours(frame,cont,-1,(0,255,255),20)
-        # contour_img = self.bridge.cv2_to_imgmsg(copy.deepcopy(frame))
-        # self.pub3.publish(contour_img)
         best_approx = None
         lowest_error = float("inf")
 
@@ -442,28 +333,42 @@ class GetTrans_new:
         for c in cont:
             pts_dst = []
             perim = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, .05 * perim, True)
+            approx = cv2.approxPolyDP(c, .08 * perim, True) #the number affects the precision of contours
             area = cv2.contourArea(c)
-            print 'pts src',pts_src
-            print 'approx',approx
+            # print 'pts src',pts_src
+            # print 'approx',approx
 
-            if len(approx) == len(self.pts_src) and area>3000:
-                right, error, new_approx = su.rightA(approx, 70,side_view) #80#change the thresh if not look vertically
+            if len(approx) == len(self.pts_src) and area>10000:
+                right, error, new_approx = su.rightA(approx, 70,view) #80#change the thresh if not look vertically
                 # print(right)
                 new_approx = np.array(new_approx)
-                print 'new approx new',new_approx
+                # print 'new approx new',new_approx
                 if error < lowest_error and right:
                     lowest_error = error
                     best_approx = new_approx
-
+        #draw contour
         if best_approx is not None and frame is not None:
             cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
-
             for i in range(0, len(best_approx)):
                 pts_dst.append((best_approx[i][0][0], best_approx[i][0][1]))
                 cv2.circle(frame, pts_dst[-1], 3+i, (i*30, 0, 255-i*20), 3)
 
-            if len(pts_dst) < 3: #at least 4 points are needed (not co-linear points)
+            if len(pts_dst) < 4: #at least 4 points are needed (not co-linear points)
+                # pts1 = pts_dst
+                # pts2 = pts_src          
+                # M1 = cv2.getAffineTransform(np.float32(pts1),np.float32(pts2))
+                # M1 = M1.tolist()
+                # M1.append([0,0,1])
+                # M1=np.array(M1)
+                # print 'M1',M1
+                # pt1 = self.transformReversePoints(pts_src[0][0],pts_src[0][1],M1,reverse=True)   
+                # pt2 = self.transformReversePoints(pts_src[1][0],pts_src[1][1],M1,reverse=True) 
+                # pt3 = self.transformReversePoints(pts_src[2][0],pts_src[2][1],M1,reverse=True)
+                # pt4 = self.transformReversePoints((pts_src[0][0]+pts_src[1][0]+pts_src[2][0])/3,(pts_src[0][1]+pts_src[1][1]+pts_src[2][1])/3,M1,reverse=True) 
+                # cv2.circle(frame, (int(pt1[0]), int(pt1[1])), 10, (255, 255, 255), 2)
+                # cv2.circle(frame, (int(pt2[0]), int(pt2[1])), 10, (255, 255, 255), 2)
+                # cv2.circle(frame, (int(pt3[0]), int(pt3[1])), 10, (255, 255, 255), 2)
+                # cv2.circle(frame, (int(pt4[0]), int(pt4[1])), 10, (255, 255, 255), 2)                
                 #modify pts_dst
                 pts_dst = [pts_dst[0],pts_dst[1],pts_dst[2]]
                 pts_src = [pts_src[0],pts_src[1],pts_src[2]]
@@ -473,15 +378,12 @@ class GetTrans_new:
                 M2 = cv2.getAffineTransform(np.float32(pts2),np.float32(pts1))
                 frame0 = copy.deepcopy(frame)
                 frame0 = cv2.warpAffine(frame0,M1,(290,290))
-                new_dst_point_tmp = (int((pts_dst[0][0]+pts_dst[1][0]+pts_dst[2][0])/3),int((pts_dst[0][1]+pts_dst[1][1]+pts_dst[2][1])/3))
-                # print 'new dst tmp',new_dst_point_tmp
-                new_dst_point = (int((pts_src[0][0]+pts_src[1][0]+pts_src[2][0])/3),int((pts_src[0][1]+pts_src[1][1]+pts_src[2][1])/3),1)
+                new_dst_point = (int((1*pts_src[0][0]+0.7*pts_src[1][0]+1.3*pts_src[2][0])/3),int((1*pts_src[0][1]+0.7*pts_src[1][1]+1.3*pts_src[2][1])/3),1)
                 # print 'new dst 0',new_dst_point
                 new_dst_point = np.dot(M2,new_dst_point)
                 # print 'new dst 1',new_dst_point
                 new_dst_point = new_dst_point[:2]
                 new_dst_point = new_dst_point.tolist()
-                # new_dst_point = (int((pts_dst[0][0]+pts_dst[1][0]+pts_dst[2][0])/3),int((pts_dst[0][1]+pts_dst[1][1]+pts_dst[2][1])/3))
                 pts_dst.append(pts_dst[2])
                 pts_dst[2] = new_dst_point
                 #modify pts_src
@@ -489,51 +391,34 @@ class GetTrans_new:
                 pts_src.append(pts_src[2])
                 pts_src[2] = new_src_point
 
-            print 'pts src',pts_src
-            print 'pts dst',pts_dst
-            h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float),cv2.LMEDS,confidence=1)
-            # h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float))
+            #opencv findhomography
+            # h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float),cv2.LMEDS,confidence=1)
+            h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float))
             # h2 = su.H_from_points(np.array(pts_src1).astype(float), np.array(pts_dst).astype(float))
             # print 'status',status
 
-            img1_warp = cv2.warpPerspective(frame0, h, (frame0.shape[1], frame0.shape[0]))
-            # image = self.bridge.cv2_to_imgmsg(img1_warp)
-            # self.pub1.publish(image)
-            # center1 = np.dot(h,(0,0,1))
-            # print 'center1',center1
-            # cv2.circle(frame, (int(center1[0]), int(center1[1])), 10, (0, 0, 255), 2)
-            # center2 = np.dot(h,(pts_src[0][0],pts_src[0][1],1))
-            # print 'center2',center2
-            # cv2.circle(frame, (int(center2[0]), int(center2[1])), 10, (0, 255, 0), 2)
-            # center3 = np.dot(h,(pts_src[1][0],pts_src[1][1],1))
-            # # print 'center3',center3
-            # cv2.circle(frame, (int(center3[0]), int(center3[1])), 10, (0, 255, 255), 2)
-            # center4 = np.dot(h,(pts_src[2][0],pts_src[2][1],1))
-            # cv2.circle(frame, (int(center4[0]), int(center4[1])), 10, (0, 255, 255), 2)
-            # center5 = np.dot(h,(pts_src[3][0],pts_src[3][1],1))
-            # cv2.circle(frame, (int(center5[0]), int(center5[1])), 10, (0, 255, 255), 2)
-            # # print 'status',status
-
-
+            # get perspective corrected paper
             pts1 = pts_dst
+            pts2 = pts_src
+            # img_warp = cv2.warpPerspective(frame0, h, (frame0.shape[1], frame0.shape[0]))
             # half_len = int(abs(pts_src[0][0]))
             # pts2 = pts_src + np.ones((4,2),dtype=int)*half_len
-            pts2 = pts_src
             M = cv2.getPerspectiveTransform(np.float32(pts1),np.float32(pts2))
-            M = np.linalg.inv(M)
-            center1 = self.transformReversePoints(0,0,h)
-            # center1 = np.dot(h,(0,0,1))
-            cv2.circle(frame, (int(center1[0]), int(center1[1])), 10, (0, 255, 255), 2)
-            center2 = self.transformReversePoints(290,0,h)
-            print 'center2',center2
-            cv2.circle(frame, (int(center2[0]), int(center2[1])), 10, (0, 255, 255), 2)
-            center3 = self.transformReversePoints(290,290,h)
-            print 'center3',center3
-            cv2.circle(frame, (int(center3[0]), int(center3[1])), 10, (0, 255, 255), 2)
-            center4 = self.transformReversePoints(0,290,h)
-            print 'center4',center4
-            cv2.circle(frame, (int(center4[0]), int(center4[1])), 10, (0, 255, 255), 2)
-            # print 'status',status
+            # img_size = (half_len*2, half_len*2)
+            img_size = (290,290)
+            im_perspCorr = cv2.warpPerspective(frame,M,img_size)
+            
+            # show the homography result
+            center = self.transformReversePoints(0,0,h)
+            cv2.circle(frame, (int(center[0]), int(center[1])), 10, (0, 0, 255), 2)
+            p1 = self.transformReversePoints(pts_src[0][0],pts_src[0][1],h)
+            p2 = self.transformReversePoints(pts_src[1][0],pts_src[1][1],h)
+            p3 = self.transformReversePoints(pts_src[2][0],pts_src[2][1],h)
+            p4 = self.transformReversePoints(pts_src[3][0],pts_src[3][1],h)
+            cv2.circle(frame, (int(p1[0]), int(p1[1])), 10, (0, 255, 255), 2)
+            cv2.circle(frame, (int(p2[0]), int(p2[1])), 10, (0, 255, 255), 2)
+            cv2.circle(frame, (int(p3[0]), int(p3[1])), 10, (0, 255, 255), 2)
+            cv2.circle(frame, (int(p4[0]), int(p4[1])), 10, (0, 255, 255), 2)
 
             (R, T) = su.decHomography(A, h)
             ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
@@ -561,41 +446,18 @@ class GetTrans_new:
             cv2.putText(imgC, 'rX: {:0.2f} rY: {:0.2f} rZ: {:0.2f}'.format(Rot[0] * 180 / np.pi, Rot[1] * 180 / np.pi, Rot[2] * 180 / np.pi), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
             cv2.putText(imgC, 'tX: {:0.2f} tY: {:0.2f} tZ: {:0.2f}'.format(Translation[0][0], Translation[1][0], Translation[2][0]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
 
-            # get perspective corrected paper
-            pts1 = pts_dst
-            # half_len = int(abs(pts_src[0][0]))
-            # pts2 = pts_src + np.ones((4,2),dtype=int)*half_len
-            pts2 = pts_src
-            M = cv2.getPerspectiveTransform(np.float32(pts1),np.float32(pts2))
-            # img_size = (half_len*2, half_len*2)
-            img_size = (290,290)
-            im_perspCorr = cv2.warpPerspective(frame,M,img_size)
-            if M is not None:
-                mid_src = ((pts2[0][0]+pts2[1][0])/2,(pts2[0][1]+pts2[1][1])/2,1)
-                mid_dst = np.dot(np.linalg.inv(M),mid_src)
-            else:
-                mid_dst =(0,0,0)
-        
-        pub_frame=self.bridge.cv2_to_imgmsg(copy.deepcopy(frame))
-        self.pub4.publish(pub_frame)
-
-        # merged_img = np.concatenate((frame, cv2.cvtColor(imgC, cv2.COLOR_BAYER_GB2BGR)), axis=1)
-        # merged_img = np.concatenate((frame, ori_img), axis=1)
-        # merged_img = im_perspCorr
 
         if R is not None:
             Rotation = Rot
             # print 'detect T',T
             Translation = (T[0, 0], T[0, 1], T[0, 2])
             # print 'translation',Translation
-
-            return h,(Rotation, Translation), frame, im_perspCorr, mid_dst
-            # return R, (Rotation, Translation), merged_img
+            return h,(Rotation, Translation), frame, filter_frame, im_perspCorr
         else:
             return None, (None, None), frame, None, None
-            # return None,(None, None), merged_img
 
-    def detect_pnp(self, frame, side_view):
+
+    def detect_pnp(self, frame, view):
         #step1: process image
         A = self.A
         pts_src = copy.deepcopy(self.pts_src)
@@ -621,7 +483,7 @@ class GetTrans_new:
             # print 'approx',approx
 
             if len(approx) == len(self.pts_src) and area>30000:
-                right, error, new_approx = su.rightA(approx, 70,side_view) #80#change the thresh if not look vertically
+                right, error, new_approx = su.rightA(approx, 70,view) #80#change the thresh if not look vertically
                 # print(right)
                 new_approx = np.array(new_approx)
                 # print 'new approx new',new_approx
@@ -644,9 +506,7 @@ class GetTrans_new:
                 M2 = cv2.getAffineTransform(np.float32(pts2),np.float32(pts1))
                 frame0 = copy.deepcopy(frame)
                 frame0 = cv2.warpAffine(frame0,M1,(290,290))
-                new_dst_point_tmp = (int((pts_dst[0][0]+pts_dst[1][0]+pts_dst[2][0])/3),int((pts_dst[0][1]+pts_dst[1][1]+pts_dst[2][1])/3))
-                # print 'new dst tmp',new_dst_point_tmp
-                new_dst_point = (int((pts_src[0][0]+pts_src[1][0]+pts_src[2][0])/3),int((pts_src[0][1]+pts_src[1][1]+pts_src[2][1])/3),1)
+                new_dst_point = (int((1*pts_src[0][0]+0.7*pts_src[1][0]+1.3*pts_src[2][0])/3),int((1*pts_src[0][1]+0.7*pts_src[1][1]+1.3*pts_src[2][1])/3),1)
                 # print 'new dst 0',new_dst_point
                 new_dst_point = np.dot(M2,new_dst_point)
                 # print 'new dst 1',new_dst_point
@@ -672,128 +532,6 @@ class GetTrans_new:
         # print 'tvecs',tvecs
         # print 'rvecs',rvecs
         return tvecs
-
-    def detect(self, frame, ori_img, side_view):
-
-        #global out
-        A = self.A
-        pts_src = self.pts_src
-        R, T = None, None
-        im_perspCorr = None # black_image (300,300,3)   np.zeros((300,300,3), np.uint8)
-        # blurr = cv2.GaussianBlur(frame, (5, 5), 0)
-        # imgG = cv2.cvtColor(blurr, cv2.COLOR_BGR2GRAY)
-        imgC = cv2.Canny(frame, 50, 60)
-        imgC = cv2.morphologyEx(imgC, cv2.MORPH_CLOSE, (3, 3))
-        # imgC = cv2.dilate(imgC, (3, 3), iterations=2)
-        (cont, _)=cv2.findContours(imgC.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # (cont, _) = cv2.findContours(imgC.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-        frame = cv2.drawContours(frame,cont,-1,(0,0,255),3)
-        # print 'cont num',len(cont)
-        best_approx = None
-        lowest_error = float("inf")
-
-        #contour selection
-        for c in cont:
-            pts_dst = []
-            perim = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, .01 * perim, True)
-            area = cv2.contourArea(c)
-
-            if len(approx) == len(self.pts_src):
-                right, error, new_approx = su.rightA(approx, 5, side_view) #80#change the thresh if not look vertically
-                # print(right)
-                new_approx = np.array(new_approx)
-                # print 'new approx',new_approx
-                if error < lowest_error and right:
-                    lowest_error = error
-                    best_approx = new_approx
-
-        if best_approx is not None:
-            cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
-
-            for i in range(0, len(best_approx)):
-                pts_dst.append((best_approx[i][0][0], best_approx[i][0][1]))
-                # cv2.circle(frame, pts_dst[-1], 3, (i*30, 0, 255-i*20), 3)
-
-            if len(pts_dst) < 4: #at least 4 points are needed (not co-linear points)
-                #modify pts_dst
-                new_dst_point = (int((pts_dst[0][0]+pts_dst[1][0]+pts_dst[2][0])/3),int((pts_dst[0][1]+pts_dst[1][1]+pts_dst[2][1])/3))
-                pts_dst.append(pts_dst[2])
-                pts_dst[2] = new_dst_point
-                #modify pts_src
-                new_src_point = [int((pts_src[0][0]+pts_src[1][0]+pts_src[2][0])/3),int((pts_src[0][1]+pts_src[1][1]+pts_src[2][1])/3)]
-                pts_src.append(pts_src[2])
-                pts_src[2] = new_src_point
-
-            # center = su.line_intersect(pts_dst[0][0],pts_dst[0][1],pts_dst[2][0],pts_dst[2][1],
-            #                            pts_dst[1][0],pts_dst[1][1],pts_dst[3][0],pts_dst[3][1])
-            # cv2.circle(frame, (int(center[0]), int(center[1])), 5, (0, 0, 255), 2)
-
-            # h1, status = cv2.findHomography(np.array(pts_src1).astype(float), np.array(pts_dst).astype(float),cv2.RANSAC,5.0)
-            h, status = cv2.findHomography(np.array(pts_src).astype(float), np.array(pts_dst).astype(float))
-            # h2 = su.H_from_points(np.array(pts_src1).astype(float), np.array(pts_dst).astype(float))
-
-            center1 = np.dot(h,(0,0,1))
-            # print 'center1',center1
-            cv2.circle(frame, (int(center1[0]), int(center1[1])), 10, (0, 0, 255), 2)
-            # center2 = np.dot(h,(145,0,1))
-            # print 'center2',center2
-            # cv2.circle(frame, (int(center2[0]), int(center2[1])), 10, (0, 255, 0), 2)
-            # center3 = np.dot(h,(0,145,1))
-            # print 'center3',center3
-            # cv2.circle(frame, (int(center3[0]), int(center3[1])), 10, (0, 255, 255), 2)
-            # print 'status',status
-
-            (R, T) = su.decHomography(A, h)
-            ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
-            num, Rs, Ts, Ns = cv2.decomposeHomographyMat(h, A)
-            '''
-            num possible solutions will be returned.
-            Rs contains a list of the rotation matrix.
-            Ts contains a list of the translation vector.
-            Ns contains a list of the normal vector of the plane.
-            '''
-            Translation = Ts[0]
-            # print 'num',num
-            print 'Ts',Ts
-            # u0 = A[0,2]
-            # v0 = A[1,2]
-            # f = A[0,0]
-            # Translation = [Ts[0][2]/f*(Ts[0][0]),Ts[0][2]/f*(Ts[0][1]),Ts[0][2]]
-            # print 'R',R
-            # print 'RS',Rs
-            # print 'tranlation3',Translation
-            Rot = su.decRotation(np.matrix(Rs[3]))
-            ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
-
-            zR = np.matrix([[math.cos(Rot[2]), -math.sin(Rot[2])], [math.sin(Rot[2]), math.cos(Rot[2])]])
-            cv2.putText(imgC, 'rX: {:0.2f} rY: {:0.2f} rZ: {:0.2f}'.format(Rot[0] * 180 / np.pi, Rot[1] * 180 / np.pi, Rot[2] * 180 / np.pi), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
-            cv2.putText(imgC, 'tX: {:0.2f} tY: {:0.2f} tZ: {:0.2f}'.format(Translation[0][0], Translation[1][0], Translation[2][0]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
-
-            # get perspective corrected paper
-            pts1 = pts_dst
-            half_len = int(abs(pts_src[0][0]))
-            pts2 = pts_src + np.ones((4,2),dtype=int)*half_len
-            M = cv2.getPerspectiveTransform(np.float32(pts1),np.float32(pts2))
-            img_size = (half_len*2, half_len*2)
-            im_perspCorr = cv2.warpPerspective(ori_img,M,img_size)
-
-        # merged_img = np.concatenate((frame, cv2.cvtColor(imgC, cv2.COLOR_BAYER_GB2BGR)), axis=1)
-        merged_img = np.concatenate((frame, ori_img), axis=1)
-        # merged_img = im_perspCorr
-
-        if R is not None:
-            # print 'R',R
-            # print 'T',T
-            Rotation = Rot
-            # Translation = (T[0, 0], T[0, 1], T[0, 2])
-            # print 'translation',Translation
-
-            return R,(Rotation, Translation), merged_img, im_perspCorr
-            # return R, (Rotation, Translation), merged_img
-        else:
-            return None, (None, None), merged_img, None
-            # return None,(None, None), merged_img
 
 class GetCreases:
   def __init__(self):

@@ -5,7 +5,7 @@ import math
 import copy
 # Gets passed an approx contour list and finds if all the angles are 90 degrees
 
-def rightA(approx, thresh, side_view):
+def rightA_old(approx, thresh, side_view):
     right = True
     error = 0
     AL = len(approx)
@@ -88,8 +88,103 @@ def rightA(approx, thresh, side_view):
             
             # print 'new approx',new_approx
 
-        # elif len(approx)>3:
-        #     new_approx = approx
+        else:
+            new_approx = approx
+
+        error += dif
+
+        if dif > thresh:
+            right = False
+    # print 'new approx',new_approx
+    return (right, error / AL, new_approx)
+
+def rightA(approx, thresh, view):
+    right = True
+    error = 0
+    AL = len(approx)
+    # print 'approx',approx
+
+    new_approx = []
+    for i in range(0, AL):
+
+        x1 = approx[i % AL][0][0]
+        y1 = approx[i % AL][0][1]
+        x2 = approx[(i + 1) % AL][0][0]
+        y2 = approx[(i + 1) % AL][0][1]
+        x3 = approx[(i + 2) % AL][0][0]
+        y3 = approx[(i + 2) % AL][0][1]
+
+        l1 = np.array([x2 - x1, y2 - y1])
+        l2 = np.array([x3 - x2, y3 - y2])
+
+        dot = np.dot(l1, l2)
+        angle = np.arccos(abs(dot) / (np.linalg.norm(l1) *
+                                      np.linalg.norm(l2))) * 180 / np.pi
+        # angle1 = np.tanh(y2 - y1, x2 - x1)
+        # angle2 = np.tanh(y3 - y2, x3 - x2)
+
+        dif0 = abs(angle - 90)
+        dif1 = abs(angle - 45)
+        if dif0 <= dif1:
+            dif = dif0
+        else:
+            dif=dif1
+        # print 'l1',l1
+        # print 'l2',l2
+        # print 'dot',dot
+        # print 'norm l1',np.linalg.norm(l1)
+        # print 'norm l2',np.linalg.norm(l2)
+        # print 'angle',angle
+        # print 'dif',dif
+        # print 'dif0',dif0
+        # print 'dif1',dif1
+        # print 'tresh',thresh
+
+        #parameter view is to determine the original point
+        if len(approx)==3 and len(new_approx)==0 and dif<thresh:
+            if view=='top' and dif==dif0:
+                #watch triangle from the top, the vertex of 90 degree is the original point
+                new_approx.append((approx[(i + 1) % AL]).tolist())
+                new_approx.append((approx[(i + 2) % AL]).tolist())
+                new_approx.append((approx[i % AL]).tolist())    
+            elif view=='side_left':
+                #watch triangle from the side, the leftmost point is the original point
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                x_min_index = temp.index(min(temp))
+                new_approx.append((approx[x_min_index % AL]).tolist())
+                new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+2) % AL]).tolist())
+            elif view=='side_right':
+                #watch triangle from the side, the rightmost point is the original point
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                x_max_index = temp.index(max(temp))
+                new_approx.append((approx[x_max_index % AL]).tolist())
+                new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+2) % AL]).tolist())  
+            elif view=='side_up':
+                #watch triangle from the side, the uppermost point is the original point
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_min_index = temp.index(min(temp))
+                new_approx.append((approx[y_min_index % AL]).tolist())
+                new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+2) % AL]).tolist())                               
+            elif view=='side_down':
+                #watch triangle from the side, the uppermost point is the original point
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_max_index = temp.index(max(temp))
+                new_approx.append((approx[y_max_index % AL]).tolist())
+                new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+2) % AL]).tolist()) 
+        elif len(approx)>3 and dif<thresh:
+            new_approx=approx
 
         error += dif
 
