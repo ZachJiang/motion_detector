@@ -321,6 +321,7 @@ class GetTrans_new:
         R, T = None, None
         im_perspCorr = None # black_image (300,300,3)   np.zeros((300,300,3), np.uint8)
         frame0 = frame.copy()
+        # print 'frame0 imfo',frame0.shape
         # add object mask and detect contour
         filter_frame=self.motion_detector0.paper_filter(frame0)
         imgC = cv2.Canny(filter_frame, 50, 60)
@@ -333,22 +334,23 @@ class GetTrans_new:
         for c in cont:
             pts_dst = []
             perim = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, .08 * perim, True) #the number affects the precision of contours
+            approx = cv2.approxPolyDP(c, .01 * perim, True) #the number affects the precision of contours
             area = cv2.contourArea(c)
-            # print 'pts src',pts_src
-            # print 'approx',approx
+            print 'pts src',pts_src
+            print 'approx',approx
 
             if len(approx) == len(self.pts_src) and area>10000:
                 right, error, new_approx = su.rightA(approx, 70,view) #80#change the thresh if not look vertically
                 # print(right)
                 new_approx = np.array(new_approx)
-                # print 'new approx new',new_approx
+                print 'new approx new',new_approx
                 if error < lowest_error and right:
                     lowest_error = error
                     best_approx = new_approx
         #draw contour
         if best_approx is not None and frame is not None:
             cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
+            # print 'best apprix',best_approx
             for i in range(0, len(best_approx)):
                 pts_dst.append((best_approx[i][0][0], best_approx[i][0][1]))
                 cv2.circle(frame, pts_dst[-1], 3+i, (i*30, 0, 255-i*20), 3)
@@ -406,19 +408,19 @@ class GetTrans_new:
             M = cv2.getPerspectiveTransform(np.float32(pts1),np.float32(pts2))
             # img_size = (half_len*2, half_len*2)
             img_size = (290,290)
-            im_perspCorr = cv2.warpPerspective(frame,M,img_size)
+            im_perspCorr = cv2.warpPerspective(copy.deepcopy(frame),M,img_size)
             
             # show the homography result
             center = self.transformReversePoints(0,0,h)
-            cv2.circle(frame, (int(center[0]), int(center[1])), 10, (0, 0, 255), 2)
-            p1 = self.transformReversePoints(pts_src[0][0],pts_src[0][1],h)
-            p2 = self.transformReversePoints(pts_src[1][0],pts_src[1][1],h)
-            p3 = self.transformReversePoints(pts_src[2][0],pts_src[2][1],h)
-            p4 = self.transformReversePoints(pts_src[3][0],pts_src[3][1],h)
-            cv2.circle(frame, (int(p1[0]), int(p1[1])), 10, (0, 255, 255), 2)
-            cv2.circle(frame, (int(p2[0]), int(p2[1])), 10, (0, 255, 255), 2)
-            cv2.circle(frame, (int(p3[0]), int(p3[1])), 10, (0, 255, 255), 2)
-            cv2.circle(frame, (int(p4[0]), int(p4[1])), 10, (0, 255, 255), 2)
+            cv2.circle(frame, (int(center[0]), int(center[1])), 10, (0, 255, 255), 2)
+            # p1 = self.transformReversePoints(pts_src[0][0],pts_src[0][1],h)
+            # p2 = self.transformReversePoints(pts_src[1][0],pts_src[1][1],h)
+            # p3 = self.transformReversePoints(pts_src[2][0],pts_src[2][1],h)
+            # p4 = self.transformReversePoints(pts_src[3][0],pts_src[3][1],h)
+            # cv2.circle(frame, (int(p1[0]), int(p1[1])), 10, (0, 255, 255), 2)
+            # cv2.circle(frame, (int(p2[0]), int(p2[1])), 10, (0, 255, 255), 2)
+            # cv2.circle(frame, (int(p3[0]), int(p3[1])), 10, (0, 255, 255), 2)
+            # cv2.circle(frame, (int(p4[0]), int(p4[1])), 10, (0, 255, 255), 2)
 
             (R, T) = su.decHomography(A, h)
             ########liwei: change the decompose homography method and do one more transformation (from pixel frame to camera frame)
@@ -2395,15 +2397,25 @@ class optical_flow:
                     
             p0_fill = np.array(p0_fill)
 
-            temp_x_max = 0
+            # temp_x_max = 0
+            # temp_y = 0
+            # for i,point in enumerate(p0_fill):
+            #     a,b = point.ravel()
+            #     if a > temp_x_max:
+            #         temp_x_max = a
+            #         temp_y = b
+            # print "=======",[temp_x_max,temp_y]
+
+            temp_x_min = 10000
             temp_y = 0
             for i,point in enumerate(p0_fill):
                 a,b = point.ravel()
-                if a > temp_x_max:
-                    temp_x_max = a
+                if a < temp_x_min:
+                    temp_x_min = a
                     temp_y = b
-            print "=======",[temp_x_max,temp_y]
-            self.p0 = np.array([[[temp_x_max,temp_y]]])
+            print "=======",[temp_x_min,temp_y]
+
+            self.p0 = np.array([[[temp_x_min,temp_y]]])
 
             self.mask = np.zeros_like(frame)
             self.count = self.count+1

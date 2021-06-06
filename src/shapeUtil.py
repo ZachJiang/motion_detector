@@ -143,12 +143,12 @@ def rightA(approx, thresh, view):
         #parameter view is to determine the original point
         if len(approx)==3 and len(new_approx)==0 and dif<thresh:
             if view=='top' and dif==dif0:
-                #watch triangle from the top, the vertex of 90 degree is the original point
+                #watch triangle from the top, the vertex of 90 degree is the origin
                 new_approx.append((approx[(i + 1) % AL]).tolist())
                 new_approx.append((approx[(i + 2) % AL]).tolist())
                 new_approx.append((approx[i % AL]).tolist())    
             elif view=='side_left':
-                #watch triangle from the side, the leftmost point is the original point
+                #watch triangle from the side, the leftmost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
                 temp = temp[:,0]
                 temp = temp.tolist()
@@ -157,7 +157,7 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
                 new_approx.append((approx[(x_min_index+2) % AL]).tolist())
             elif view=='side_right':
-                #watch triangle from the side, the rightmost point is the original point
+                #watch triangle from the side, the rightmost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
                 temp = temp[:,0]
                 temp = temp.tolist()
@@ -166,7 +166,7 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
                 new_approx.append((approx[(x_max_index+2) % AL]).tolist())  
             elif view=='side_up':
-                #watch triangle from the side, the uppermost point is the original point
+                #watch triangle from the side, the uppermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
                 temp = temp[:,1]
                 temp = temp.tolist()
@@ -175,7 +175,7 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
                 new_approx.append((approx[(y_min_index+2) % AL]).tolist())                               
             elif view=='side_down':
-                #watch triangle from the side, the uppermost point is the original point
+                #watch triangle from the side, the lowermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
                 temp = temp[:,1]
                 temp = temp.tolist()
@@ -183,8 +183,55 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[y_max_index % AL]).tolist())
                 new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
                 new_approx.append((approx[(y_max_index+2) % AL]).tolist()) 
-        elif len(approx)>3 and dif<thresh:
+        elif len(approx)==4 and len(new_approx)==0 and dif<thresh:
+            if view == 'side_left':
+                #the leftmost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                print 'temp',temp
+                x_min_index = temp.index(min(temp))
+                print 'x min index',x_min_index
+                new_approx.append((approx[x_min_index % AL]).tolist())
+                new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+2) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+3) % AL]).tolist())
+            elif view == 'side_right':
+                #the rightmost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                x_max_index = temp.index(max(temp))
+                new_approx.append((approx[x_max_index % AL]).tolist())
+                new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+2) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+3) % AL]).tolist())      
+            elif view == 'side_down':
+                #the lowermost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_max_index = temp.index(max(temp))
+                new_approx.append((approx[y_max_index % AL]).tolist())
+                new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+2) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+3) % AL]).tolist()) 
+            elif view == 'side_up':
+                #the uppermost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_min_index = temp.index(min(temp))
+                new_approx.append((approx[y_min_index % AL]).tolist())
+                new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+2) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+3) % AL]).tolist())    
+            elif view == 'top':
+                new_approx=approx         
+        elif len(approx)>4 and dif<thresh:    
             new_approx=approx
+        # print 'approx',approx
+        # print 'new approx',new_approx
 
         error += dif
 
