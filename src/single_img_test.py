@@ -197,7 +197,7 @@ if __name__ == '__main__':
    # img_src = cv2.imread("cropped_sample/airplane.png")
    img_src = cv2.imread("cropped_sample/left0000.jpg")
    # img_src = cv2.resize(img_src, (420,300), interpolation = cv2.INTER_AREA)
-   creases = [[[-145,-145],[145,145]],[[0,0],[145,-145]]]
+   creases = [[[-145,-145],[145,145]],[[-145,145],[145,-145]]]
    # creases = [[[-210,-60],[0,150]],[[0,150],[210,-60]],[[-105,-150],[-105,45]],[[105,45],[105,-150]],[[0,-150],[0,150]]]
 
    # creases = [[[0,290],[290,0]],[[0,0],[290,290]]]
@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
    #step2: detect polygons
    # pts_src = np.array([[-210, -150], [210, -150], [210, 150], [-210, 150]])
-   pts_src = np.array([[-145, -145], [145, -145], [145, 145], [-145, 145]])
+   pts_src = np.array([[-145, -145], [145, -145], [145, -145], [-145, 145]])
    result_img1 = copy.deepcopy(img_src)
    motion_detector2 = cl.Predictor(pts_src,creases,creases[0],result_img1)
    motion_detector2.get_facets_info(result_img1,0)

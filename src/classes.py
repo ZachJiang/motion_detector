@@ -192,6 +192,7 @@ class GetTrans_new:
         #detect the mid point of a line, used in corner match
         #step1: get the homography matrix
         frame0 = frame.copy()
+        # print 'frame0 info',frame0.shape
         h_mat, (R,T), result_img1, filter_frame, img_warp= self.detect_new(frame0,view)
         self.mid_point = None
         print 'h_mat',h_mat
@@ -217,7 +218,7 @@ class GetTrans_new:
 
             return tar_point,frame, result_img1, filter_frame, img_warp
         else:
-            return None,None,None,None,None
+            return None,frame,result_img1,filter_frame,None
 
     # Function to Detection Outlier on one-dimentional datasets.
     def delete_anomalies(self,data):
@@ -324,6 +325,7 @@ class GetTrans_new:
         # print 'frame0 imfo',frame0.shape
         # add object mask and detect contour
         filter_frame=self.motion_detector0.paper_filter(frame0)
+        # print 'filter frame info',filter_frame.shape
         imgC = cv2.Canny(filter_frame, 50, 60)
         imgC = cv2.morphologyEx(imgC, cv2.MORPH_CLOSE, (3, 3))
         (cont, _)=cv2.findContours(imgC.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -336,21 +338,21 @@ class GetTrans_new:
             perim = cv2.arcLength(c, True)
             approx = cv2.approxPolyDP(c, .01 * perim, True) #the number affects the precision of contours
             area = cv2.contourArea(c)
-            print 'pts src',pts_src
-            print 'approx',approx
+            # print 'pts src',pts_src
+            # print 'approx',approx
 
             if len(approx) == len(self.pts_src) and area>10000:
                 right, error, new_approx = su.rightA(approx, 70,view) #80#change the thresh if not look vertically
                 # print(right)
                 new_approx = np.array(new_approx)
-                print 'new approx new',new_approx
+                # print 'new approx new',new_approx
                 if error < lowest_error and right:
                     lowest_error = error
                     best_approx = new_approx
         #draw contour
         if best_approx is not None and frame is not None:
             cv2.drawContours(frame, [best_approx], 0, (255, 0, 0), 3)
-            # print 'best apprix',best_approx
+            # print 'best approx',best_approx
             for i in range(0, len(best_approx)):
                 pts_dst.append((best_approx[i][0][0], best_approx[i][0][1]))
                 cv2.circle(frame, pts_dst[-1], 3+i, (i*30, 0, 255-i*20), 3)
@@ -456,7 +458,7 @@ class GetTrans_new:
             # print 'translation',Translation
             return h,(Rotation, Translation), frame, filter_frame, im_perspCorr
         else:
-            return None, (None, None), frame, None, None
+            return None, (None, None), frame, filter_frame, None
 
 
     def detect_pnp(self, frame, view):
@@ -2065,7 +2067,7 @@ class Predictor:
             #     cv2.waitKey(0)
 
             #step2: get and store points, color of each contour
-            for i in range(0,len(contours)-1):
+            for i in range(0,len(contours)):
                 perim = cv2.arcLength(contours[i], True)
                 approx = cv2.approxPolyDP(contours[i], .05 * perim, True)
                 new_approx = ut.frame_transform(approx,self.halfX,self.halfY)
@@ -2307,7 +2309,6 @@ class Predictor:
         current_crease = copy.deepcopy(self.current_crease)
         state = 'state'+str(step+1)
         facet_pts = copy.deepcopy(self.state[state]['facet_pts'])
-        # print 'facet pts',facet_pts
         a,b,c = ut.lineToFunction(current_crease)
         crease_func = [a,b,c]
         left_facets,right_facets = ut.get_side_facets(current_crease,facet_pts)
@@ -2345,6 +2346,26 @@ class Predictor:
         match_info = {'grasp_pts_src':pts_src0,'target_pts_src':pts_src1,'match_type':type}
 
         return match_info
+
+class ParameterGenerator:
+    #generate parameters for robotic execution function
+    def __init__(self,state):
+        self.state=state
+    def analysis(self,step):
+        #step1: get all information
+        state_name = 'state'+str(step+1)
+        current_state = copy.deepcopy(self.state[state_name])
+        current_crease = copy.deepcopy(current_state['crease'])
+        grasp_point = copy.deepcopy(current_state['match_info']['grasp_pts_src'])
+        target_point = copy.deepcopy(current_state['match_info']['target_pts_src'])
+        method = copy.deepcopy(current_state['grasp_method'])
+
+        #step2: analyze the information
+        trans_target2ref = [float(grasp_point[0][0]/1000),float(grasp_point[0][1]/1000),0]
+        crease_norm = np.linalg.norm(current_crease)
+        crease_axis = [float(current_crease[0]/crease_norm),float(current_crease[1]/crease_norm),0] #can be modify with vision
+        crease_perp_l = float(ut.pointsDistance(grasp_point[0],target_point[0])/1000)
+        return trans_target2ref,crease_axis,crease_perp_l
 
 class optical_flow:
     def __init__(self):
