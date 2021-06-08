@@ -189,9 +189,9 @@ def rightA(approx, thresh, view):
                 temp = copy.deepcopy(np.array(approx)[:,0])
                 temp = temp[:,0]
                 temp = temp.tolist()
-                print 'temp',temp
+                # print 'temp',temp
                 x_min_index = temp.index(min(temp))
-                print 'x min index',x_min_index
+                # print 'x min index',x_min_index
                 new_approx.append((approx[x_min_index % AL]).tolist())
                 new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
                 new_approx.append((approx[(x_min_index+2) % AL]).tolist())

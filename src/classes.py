@@ -338,7 +338,7 @@ class GetTrans_new:
             perim = cv2.arcLength(c, True)
             approx = cv2.approxPolyDP(c, .01 * perim, True) #the number affects the precision of contours
             area = cv2.contourArea(c)
-            # print 'pts src',pts_src
+            # print 'pts src in detect new',pts_src
             # print 'approx',approx
 
             if len(approx) == len(self.pts_src) and area>10000:
@@ -404,6 +404,8 @@ class GetTrans_new:
             # get perspective corrected paper
             pts1 = pts_dst
             pts2 = pts_src
+            # print 'pts dst',pts1
+            # print 'pts src',pts2
             # img_warp = cv2.warpPerspective(frame0, h, (frame0.shape[1], frame0.shape[0]))
             # half_len = int(abs(pts_src[0][0]))
             # pts2 = pts_src + np.ones((4,2),dtype=int)*half_len
@@ -2086,8 +2088,11 @@ class Predictor:
             #step4: get match info and add it into the state dict
             match_info = self.get_match_info(step)
             self.state['state1']['match_info']=match_info
+            self.state['state1']['crease'] = copy.deepcopy(self.current_crease)
+            self.state['state1']['grasp_method'] = copy.deepcopy(self.get_grasp_method(step))
             print 'state.match',self.state['state1']['match_info']
             print 'state.contour',self.state['state1']['contour_pts']
+            print 'self.grasp_method',self.state['state1']['grasp_method']
             # cv2.imshow('image step0',image0)
             return image0
 
@@ -2133,8 +2138,11 @@ class Predictor:
             self.crease_update(self.creases[step])
             match_info_new = self.get_match_info(step)
             self.state[state1]['match_info']=match_info_new
+            self.state[state1]['crease'] = copy.deepcopy(self.current_crease)
+            self.state[state1]['grasp_method'] = copy.deepcopy(self.get_grasp_method(step))
             print 'state.match',self.state[state1]['match_info']
             print 'state.contour',self.state[state1]['contour_pts']
+            print 'self.grasp_method',self.state[state1]['grasp_method']
 
             #step5: new contour image
             gray = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
@@ -2347,13 +2355,37 @@ class Predictor:
 
         return match_info
 
+    def get_grasp_method(self,step):
+        #determine the grasp method: flexflip or scoop
+        #if the grasp point is located in more than 1 facet, then scoop; else flexflip
+
+        #step1: get the facets and grasp information from previous states
+        state = 'state'+str(step+1)
+        facet_pts = copy.deepcopy(self.state[state]['facet_pts'])
+        match_info = copy.deepcopy(self.state[state]['match_info'])
+        grasp_point = copy.deepcopy(match_info['grasp_pts_src'])
+        grasp_point = grasp_point[0]
+
+        #step2: determine if the grasp point is located in more than 1 facet
+        facet_polygons = []
+        for facet in facet_pts.keys():
+            facet_polygons.append(facet_pts[facet])
+        is_in = ut.if_point_in_overlap_facets(grasp_point,facet_polygons,15,100)
+
+        if is_in == 1:
+            return 'scoop'
+        elif is_in == 0:
+            return 'flexflip'
+        else:
+            print '*************************grasp method error!'
+
 class ParameterGenerator:
     #generate parameters for robotic execution function
     def __init__(self,state):
         self.state=state
     def analysis(self,step):
         #step1: get all information
-        state_name = 'state'+str(step+1)
+        state_name = 'state'+str(step)
         current_state = copy.deepcopy(self.state[state_name])
         current_crease = copy.deepcopy(current_state['crease'])
         grasp_point = copy.deepcopy(current_state['match_info']['grasp_pts_src'])

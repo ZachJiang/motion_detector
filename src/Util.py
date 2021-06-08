@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 import copy
+from shapely.geometry import *
 
 def lineToFunction(line):
     "input line[[x1,y1],[x2,y2]], return k,b (ax+by+c=0)"
@@ -92,14 +93,41 @@ def findFurthestPointInfo(crease_func,polygon,facets):
         info.append([info_tmp[index][1],info_tmp[index][2]])
     return info
 
-def if_point_in_list(point,points_list):
+def if_point_in_list(point,points_list,dis_thresh=10):
     # because crease detection has errors, the previous method: if point in list, is not accurate
     # now we give some tolerance, if point has small errors with other points in the list, return 1
+    points_list = np.array(points_list)
+    points_list = points_list.tolist()
     for pt in points_list:
         dis = pointsDistance(pt,point)
-        if dis <= 10:
+        if dis <= dis_thresh:
             return 1
     return 0
+
+def if_point_in_overlap_facets(point,points_lists,dis_thresh=10,area_thresh=100):
+    #this is to determine if the point is in two overlap facets or in two adjacent facets
+    
+    #step1: determine if the point is in more than 1 facet
+    lists = []
+    points_lists = (np.array(points_lists)).tolist()
+    for points_list in points_lists:
+        is_in = if_point_in_list(point,points_list,dis_thresh)
+        if is_in == 1:
+            lists.append(points_list)
+
+    #step2: if true, determine if the two facets are adjacet or overlap
+    if len(lists)>1:
+        for i in range(len(lists)-1):
+            line1 = LineString(lists[i])
+            poly1 = Polygon(line1)
+            for j in range(i+1,len(lists)):
+                line2 = LineString(lists[j])
+                poly2 = Polygon(line2)     
+                area = poly1.intersection(poly2).area
+                # print 'area',area
+                if area>area_thresh:
+                    return 1
+    return 0       
 
 def frame_transform(pts,halfX,halfY,inverse=0):
     pts=np.array(pts)
