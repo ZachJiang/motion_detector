@@ -171,50 +171,50 @@ if __name__ == '__main__':
 
 ###test 6: CornerMatch_v3:
 
-      # for i in range(1,1000):
-      #    # img_src= cv2.imread('diag_fold_sample5/left'+"{0:0>4}".format(i)+'.jpg')
-      #    img_src= cv2.imread('corner_match_sample3/left'+"{0:0>4}".format(i)+'.jpg')      
-      #    print 'str','corner_match_sample2/left'+"{0:0>4}".format(i)+'.jpg'
+      for i in range(1,1000):
+         # img_src= cv2.imread('diag_fold_sample5/left'+"{0:0>4}".format(i)+'.jpg')
+         img_src= cv2.imread('corner_match_sample4/left'+"{0:0>4}".format(i)+'.jpg')      
+         print 'str','corner_match_sample4/left'+"{0:0>4}".format(i)+'.jpg'
 
-      #    motion_detector1 = cl.CornerMatch_v3()
-      #    #   skimage_src = img_as_float(img_src)
-      #    #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
-      #    #   img_src = img_as_ubyte(skimage)
+         motion_detector1 = cl.topLayerMask()
+         #   skimage_src = img_as_float(img_src)
+         #   skimage = exposure.equalize_adapthist(skimage_src, clip_limit=0.01)
+         #   img_src = img_as_ubyte(skimage)
 
-      #    # image = motion_detector.kmeansColor(img_src,clusters=3,rounds=5)
-      #    ## Shi-Tomasi method
-      #    image,_,_ = motion_detector1.GetEdges(img_src)
+         # image = motion_detector.kmeansColor(img_src,clusters=3,rounds=5)
+         ## Shi-Tomasi method
+         result,maskW,maskG = motion_detector1.GetMask(img_src)
 
-      #    # cv2.imshow("CornerMatch_v2",image)        
-      #    cv2.waitKey(0)
+         cv2.imshow("CornerMatch_v3",result)        
+         cv2.waitKey(0)
 
 
 ##test 5: Predictor
  # For one image
 
-   #step1: get segmented image (segmented by creases).
-   pts_src0 = np.array([[0, 0], [290, 0], [290, 290], [0, 290]])
-   # img_src = cv2.imread("cropped_sample/airplane.png")
-   img_src = cv2.imread("cropped_sample/left0000.jpg")
-   # img_src = cv2.resize(img_src, (420,300), interpolation = cv2.INTER_AREA)
-   creases = [[[-145,-145],[145,145]],[[-145,145],[145,-145]]]
-   # creases = [[[-210,-60],[0,150]],[[0,150],[210,-60]],[[-105,-150],[-105,45]],[[105,45],[105,-150]],[[0,-150],[0,150]]]
+   # #step1: get segmented image (segmented by creases).
+   # pts_src0 = np.array([[0, 0], [290, 0], [290, 290], [0, 290]])
+   # # img_src = cv2.imread("cropped_sample/airplane.png")
+   # img_src = cv2.imread("cropped_sample/left0000.jpg")
+   # # img_src = cv2.resize(img_src, (420,300), interpolation = cv2.INTER_AREA)
+   # creases = [[[-145,-145],[145,145]],[[-145,145],[145,-145]]]
+   # # creases = [[[-210,-60],[0,150]],[[0,150],[210,-60]],[[-105,-150],[-105,45]],[[105,45],[105,-150]],[[0,-150],[0,150]]]
 
-   # creases = [[[0,290],[290,0]],[[0,0],[290,290]]]
-   # cv2.imshow("Original_image", img_src)
-   # cv2.imshow("Image", result_img1)
+   # # creases = [[[0,290],[290,0]],[[0,0],[290,290]]]
+   # # cv2.imshow("Original_image", img_src)
+   # # cv2.imshow("Image", result_img1)
 
-   #step2: detect polygons
-   # pts_src = np.array([[-210, -150], [210, -150], [210, 150], [-210, 150]])
-   pts_src = np.array([[-145, -145], [145, -145], [145, -145], [-145, 145]])
-   result_img1 = copy.deepcopy(img_src)
-   motion_detector2 = cl.Predictor(pts_src,creases,creases[0],result_img1)
-   motion_detector2.get_facets_info(result_img1,0)
-   # motion_detector2.crease_update(creases[1])
-   motion_detector2.get_facets_info(result_img1,1)
-   # motion_detector2.get_facets_info(result_img1,2)
-   # motion_detector2.get_facets_info(result_img1,3)
-   # motion_detector2.get_facets_info(result_img1,4)
+   # #step2: detect polygons
+   # # pts_src = np.array([[-210, -150], [210, -150], [210, 150], [-210, 150]])
+   # pts_src = np.array([[-145, -145], [145, -145], [145, -145], [-145, 145]])
+   # result_img1 = copy.deepcopy(img_src)
+   # motion_detector2 = cl.Predictor(pts_src,creases,creases[0],result_img1)
+   # motion_detector2.get_facets_info(result_img1,0)
+   # # motion_detector2.crease_update(creases[1])
+   # motion_detector2.get_facets_info(result_img1,1)
+   # # motion_detector2.get_facets_info(result_img1,2)
+   # # motion_detector2.get_facets_info(result_img1,3)
+   # # motion_detector2.get_facets_info(result_img1,4)
    
 
-   cv2.waitKey(0)
+   # cv2.waitKey(0)

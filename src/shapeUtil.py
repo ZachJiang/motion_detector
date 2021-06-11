@@ -85,7 +85,7 @@ def rightA_old(approx, thresh, side_view):
             new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
             new_approx.append((approx[(x_min_index+2) % AL]).tolist())
             new_approx.append((approx[(x_min_index+3) % AL]).tolist())
-            
+
             # print 'new approx',new_approx
 
         else:
@@ -146,7 +146,7 @@ def rightA(approx, thresh, view):
                 #watch triangle from the top, the vertex of 90 degree is the origin
                 new_approx.append((approx[(i + 1) % AL]).tolist())
                 new_approx.append((approx[(i + 2) % AL]).tolist())
-                new_approx.append((approx[i % AL]).tolist())    
+                new_approx.append((approx[i % AL]).tolist())
             elif view=='side_left':
                 #watch triangle from the side, the leftmost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
@@ -164,7 +164,7 @@ def rightA(approx, thresh, view):
                 x_max_index = temp.index(max(temp))
                 new_approx.append((approx[x_max_index % AL]).tolist())
                 new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
-                new_approx.append((approx[(x_max_index+2) % AL]).tolist())  
+                new_approx.append((approx[(x_max_index+2) % AL]).tolist())
             elif view=='side_up':
                 #watch triangle from the side, the uppermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
@@ -173,7 +173,7 @@ def rightA(approx, thresh, view):
                 y_min_index = temp.index(min(temp))
                 new_approx.append((approx[y_min_index % AL]).tolist())
                 new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
-                new_approx.append((approx[(y_min_index+2) % AL]).tolist())                               
+                new_approx.append((approx[(y_min_index+2) % AL]).tolist())
             elif view=='side_down':
                 #watch triangle from the side, the lowermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
@@ -182,7 +182,56 @@ def rightA(approx, thresh, view):
                 y_max_index = temp.index(max(temp))
                 new_approx.append((approx[y_max_index % AL]).tolist())
                 new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
-                new_approx.append((approx[(y_max_index+2) % AL]).tolist()) 
+                new_approx.append((approx[(y_max_index+2) % AL]).tolist())
+        elif len(approx)==5 and len(new_approx)==0 and dif<thresh:
+            if view == 'side_left':
+                #the leftmost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                # print 'temp',temp
+                x_min_index = temp.index(min(temp))
+                # print 'x min index',x_min_index
+                new_approx.append((approx[x_min_index % AL]).tolist())
+                new_approx.append((approx[(x_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+2) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+3) % AL]).tolist())
+                new_approx.append((approx[(x_min_index+4) % AL]).tolist())
+            elif view == 'side_right':
+                #the rightmost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,0]
+                temp = temp.tolist()
+                x_max_index = temp.index(max(temp))
+                new_approx.append((approx[x_max_index % AL]).tolist())
+                new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+2) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+3) % AL]).tolist())
+                new_approx.append((approx[(x_max_index+4) % AL]).tolist())
+            elif view == 'side_down':
+                #the lowermost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_max_index = temp.index(max(temp))
+                new_approx.append((approx[y_max_index % AL]).tolist())
+                new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+2) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+3) % AL]).tolist())
+                new_approx.append((approx[(y_max_index+4) % AL]).tolist())
+            elif view == 'side_up':
+                #the uppermost point is the origin
+                temp = copy.deepcopy(np.array(approx)[:,0])
+                temp = temp[:,1]
+                temp = temp.tolist()
+                y_min_index = temp.index(min(temp))
+                new_approx.append((approx[y_min_index % AL]).tolist())
+                new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+2) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+3) % AL]).tolist())
+                new_approx.append((approx[(y_min_index+4) % AL]).tolist())
+            elif view == 'top':
+                new_approx=approx
         elif len(approx)==4 and len(new_approx)==0 and dif<thresh:
             if view == 'side_left':
                 #the leftmost point is the origin
@@ -205,7 +254,7 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[x_max_index % AL]).tolist())
                 new_approx.append((approx[(x_max_index + 1) % AL]).tolist())
                 new_approx.append((approx[(x_max_index+2) % AL]).tolist())
-                new_approx.append((approx[(x_max_index+3) % AL]).tolist())      
+                new_approx.append((approx[(x_max_index+3) % AL]).tolist())
             elif view == 'side_down':
                 #the lowermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
@@ -215,7 +264,7 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[y_max_index % AL]).tolist())
                 new_approx.append((approx[(y_max_index + 1) % AL]).tolist())
                 new_approx.append((approx[(y_max_index+2) % AL]).tolist())
-                new_approx.append((approx[(y_max_index+3) % AL]).tolist()) 
+                new_approx.append((approx[(y_max_index+3) % AL]).tolist())
             elif view == 'side_up':
                 #the uppermost point is the origin
                 temp = copy.deepcopy(np.array(approx)[:,0])
@@ -225,10 +274,10 @@ def rightA(approx, thresh, view):
                 new_approx.append((approx[y_min_index % AL]).tolist())
                 new_approx.append((approx[(y_min_index + 1) % AL]).tolist())
                 new_approx.append((approx[(y_min_index+2) % AL]).tolist())
-                new_approx.append((approx[(y_min_index+3) % AL]).tolist())    
+                new_approx.append((approx[(y_min_index+3) % AL]).tolist())
             elif view == 'top':
-                new_approx=approx         
-        elif len(approx)>4 and dif<thresh:    
+                new_approx=approx
+        elif len(approx)>5 and dif<thresh:
             new_approx=approx
         # print 'approx',approx
         # print 'new approx',new_approx
@@ -239,7 +288,7 @@ def rightA(approx, thresh, view):
             right = False
     # print 'new approx',new_approx
     return (right, error / AL, new_approx)
-
+    
 def H_from_points(fp, tp):
     """Find homography H, such that fp is mapped to tp using the linear
        DLT method. Points are conditioned automatically.
@@ -433,13 +482,13 @@ def decRotation(R):
     return (x, y, z)
 
 def line_intersect(x1, y1, x2, y2, x3, y3, x4, y4):
-        """ returns a (x, y) tuple or None if there is no intersection """
-        # (x1,y1,),(x2,y2) for L1; (x3,y3),(x4,y4) for L2
-        d = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4)
+    """ returns a (x, y) tuple or None if there is no intersection """
+    # (x1,y1,),(x2,y2) for L1; (x3,y3),(x4,y4) for L2
+    d = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4)
 
-        if d == 0:
-            return 0
-        else:
-            x = ((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/d
-            y = ((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/d
-            return (x, y)
+    if d == 0:
+        return 0
+    else:
+        x = ((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/d
+        y = ((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/d
+        return (x, y)
