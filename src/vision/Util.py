@@ -141,12 +141,15 @@ def frame_transform(pts,halfX,halfY,inverse=0):
     pts = np.append(pts,new,axis=1)
     pts = pts.T
     pts = pts.tolist()
+    #the mat needs to be set as an input parameter
     if inverse==0:
         # mat=np.matrix([[1,0,-1*halfX],[0,-1,halfY],[0,0,1]])
         mat=np.matrix([[0,-1,1*halfX],[-1,0,halfY],[0,0,1]])
+        # mat = np.matrix([[-1,0,1*halfX],[0,-1,halfY],[0,0,1]])
     elif inverse==1:
         # mat=np.matrix([[1,0,1*halfX],[0,-1,halfY],[0,0,1]])
-        mat=np.matrix([[0,-1,1*halfY],[-1,0,halfX],[0,0,1]])
+        mat=np.matrix([[0,-1,1*halfX],[-1,0,halfY],[0,0,1]])
+        # mat=np.matrix([[-1,0,1*halfY],[0,-1,halfX],[0,0,1]])
     new_pts = np.dot(mat,pts)
     new_pts = new_pts[:2,:]
     new_pts = new_pts.T
@@ -165,10 +168,13 @@ def ccw(pts):
         pt=pts[i]
         l2=(pt[0],pt[1])
         theNorm = np.linalg.norm(l1)*np.linalg.norm(l2)
-        rho = np.arcsin(np.cross(l1,l2)/theNorm)*180/np.pi
-        angle=np.arccos(np.dot(l1,l2)/theNorm) * 180 / np.pi
-        if rho < 0:
-            angle=-angle
+        if theNorm == 0:
+            angle = 0
+        else:
+            rho = np.arcsin(np.cross(l1,l2)/theNorm)*180/np.pi
+            angle=np.arccos(np.dot(l1,l2)/theNorm) * 180 / np.pi
+            if rho < 0:
+                angle=-angle
         angle=round(angle,2)
         sorted_pts[i].append(angle)
 

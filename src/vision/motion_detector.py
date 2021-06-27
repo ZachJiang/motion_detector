@@ -53,8 +53,8 @@ class Motion:
         clean_image = cv_image.copy()
 
         step = rospy.wait_for_message('steps/getStep', UInt16).data
-        color_list = ['black','grass','gray','green','black']
-        dir_list = ['min','max','min','max','max']
+        color_list = ['green','white','white']
+        dir_list = ['max','max','min']
         color = color_list[step]
         self.direction = dir_list[step]
         merged,tip_mask = self.motion_detector3.GetMask(clean_image,color)

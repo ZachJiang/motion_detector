@@ -33,26 +33,38 @@ class Motion_predictor:
         self.MidPoint = None
         self.state='state1'
         #step2: initialize class predictor
+        #sample1: x pattern
         # img_src = cv2.imread("/home/zach/catkin_ws/src/motion_detector/src/vision/cropped_sample/left0000.jpg")
         # creases = [[[-145,-145],[145,145]],[[-145,145],[145,-145]]]
         # creases = [[[145,-145],[-145,145]],[[-145,-145],[145,145]]]
-        img_src = cv2.imread("/home/zach/catkin_ws/src/motion_detector/src/vision/cropped_sample/airplane.png")
-        img_src = cv2.resize(img_src, (420,300), interpolation = cv2.INTER_AREA)
-        creases = [[[-60,210],[150,0]],[[150,0],[-60,-210]],[[-150,105],[45,105]],[[45,-105],[-150,-105]],[[150,0],[-150,0]]]
-        # creases = [[[-210,-60],[0,150]],[[0,150],[210,-60]],[[-105,-150],[-105,45]],[[105,45],[105,-150]],[[0,-150],[0,150]]]
         # pts_src = np.array([[-145, -145], [145, -145], [145, 145], [-145, 145]])
-        pts_src = np.array([[-150, 210], [-150, -210], [150, -210], [150, 210]])
+        #sample2: airplane
+        # img_src = cv2.imread("/home/zach/catkin_ws/src/motion_detector/src/vision/cropped_sample/airplane.png")
+        # img_src = cv2.resize(img_src, (420,300), interpolation = cv2.INTER_AREA)
+        # creases = [[[-60,210],[150,0]],[[150,0],[-60,-210]],[[-150,105],[45,105]],[[45,-105],[-150,-105]],[[150,0],[-150,0]]]
+        # creases = [[[-210,-60],[0,150]],[[0,150],[210,-60]],[[-105,-150],[-105,45]],[[105,45],[105,-150]],[[0,-150],[0,150]]]
+        # pts_src = np.array([[-150, 210], [-150, -210], [150, -210], [150, 210]])
+        #sample3: yacht
+        # img_src = cv2.imread("/home/zach/catkin_ws/src/motion_detector/src/vision/cropped_sample/yacht.png")
+        # img_src = cv2.resize(img_src, (410,410), interpolation = cv2.INTER_AREA)
+        # creases = [[[-205,0],[205,0]],[[0,-205],[-85,0]]]
+        # pts_src = np.array([[0, -205], [205, 0], [0, 205], [-205, 0]])
+        #sample4: flower
+        img_src = cv2.imread("/home/zach/catkin_ws/src/motion_detector/src/vision/cropped_sample/flower.png")
+        img_src = cv2.resize(img_src, (410,410), interpolation = cv2.INTER_AREA)
+        creases = [[[0,-205],[0,205]],[[76,-129],[0,0]],[[0,0],[76,129]]]
+        pts_src = np.array([[0, -205], [205, 0], [0, 205], [-205, 0]])
         result_img1 = copy.deepcopy(img_src)
         self.motion_detector1 = cl.Predictor(pts_src,creases,creases[0],result_img1)
         self.motion_detector3 = cl.ParameterGenerator()
 
         #step3: get paper's location via homography
-        for i in range(5):
+        for i in range(2):
             self.motion_detector1.get_facets_info(result_img1,i)
         paper_state = copy.deepcopy(self.motion_detector1.state)
         self.motion_detector3.updateState(paper_state)
 
-        self.sub0 = rospy.Subscriber("steps/getStep", UInt16, self.imageCallback0)
+        self.sub0 = rospy.Subscriber('steps/getStep', UInt16, self.imageCallback0)
         self.sub1 = rospy.Subscriber("usb_cam_h/image_raw", Image, self.imageCallback1)
         self.sub2 = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback2)
         # self.sub_test = rospy.Subscriber("usb_cam_k/image_raw", Image, self.imageCallback3) #only for hsv calc,comment above3
@@ -89,15 +101,20 @@ class Motion_predictor:
         # print 'imagecallback1 state',self.state
         cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         clean_image = copy.deepcopy(cv_image)
-        _,(Rotation, Translation), frame, filter_frame, img_warp=self.motion_detector2.detect_new(clean_image,view='side_right')
-        #step0: 'top'; step1: 'side_down', step2:'side_right', step3:'side_right', step4: 'side_down'
+        _,(Rotation, Translation), frame, filter_frame, img_warp=self.motion_detector2.detect_new(clean_image,view='side_left')
+        # for airplane:step0: 'top'; step1: 'side_down', step2:'side_right', step3:'side_right', step4: 'side_down'
+        # for yacht: step0: side_top step1: left
+        # for flower: step0: top, step1:side_left
 
         #publish the images
         if frame is not None:
             frame_pub = self.bridge.cv2_to_imgmsg(frame)
             self.pub1.publish(frame_pub)
         if filter_frame is not None:
-            filter_pub = self.bridge.cv2_to_imgmsg(filter_frame)
+            test = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
+            h,s,v = cv2.split(test)
+            test = np.concatenate((test,cv2.cvtColor(h, cv2.COLOR_GRAY2BGR),cv2.cvtColor(s, cv2.COLOR_GRAY2BGR),cv2.cvtColor(v, cv2.COLOR_GRAY2BGR),cv2.cvtColor(filter_frame, cv2.COLOR_GRAY2BGR)),axis=1)
+            filter_pub = self.bridge.cv2_to_imgmsg(test)
             self.pub3.publish(filter_pub)
         if img_warp is not None:
             warp_pub = self.bridge.cv2_to_imgmsg(img_warp)
@@ -135,13 +152,17 @@ class Motion_predictor:
 
         pt1 = copy.deepcopy(self.motion_detector1.grasp_point)
         pt2 = copy.deepcopy(self.motion_detector1.target_point)
+        # pt2 = [3,48] #for yacht step1
+
         
         print 'pts src',self.motion_detector1.state[self.state]['contour_pts']
         print 'grasp point',self.motion_detector1.grasp_point
         print 'target point',self.motion_detector1.target_point
         
-        mid_point,result_img, homo_img, filter_frame, img_warp = self.motion_detector2.detect_mid_point(clean_image,pt1,pt2,view='side_down')
+        mid_point,result_img, homo_img, filter_frame, img_warp = self.motion_detector2.detect_mid_point(clean_image,pt1,pt2,view='side_up')
         #step0: 'side_up', step1:'side_left', step2: 'side_down'/'side_right', step3: 'side_down', step4: 'side_left'
+        #yacht: step0:right, step1:up
+        #flower: step0: down, step1:top
 
         #publish images
         if homo_img is not None:

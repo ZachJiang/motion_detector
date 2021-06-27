@@ -273,7 +273,7 @@ class GetTrans_new:
         for c in cont:
             pts_dst = []
             perim = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, .01 * perim, True) #the number affects the precision of contours
+            approx = cv2.approxPolyDP(c, .05 * perim, True) #the number affects the precision of contours
             area = cv2.contourArea(c)
             # print 'pts src in detect new',pts_src
             # print 'approx',approx
@@ -1236,8 +1236,8 @@ class Predictor:
         # print 'creases self',self.creases
         # print 'current crease',self.current_crease
 
-        self.halfX = abs(self.pts_src[0,0])
-        self.halfY = abs(self.pts_src[0,1])
+        self.halfX = 205
+        self.halfY = 205
 
     def crease_update(self,new_crease):
         # update crease info
@@ -1261,9 +1261,17 @@ class Predictor:
             ret, binary = cv2.threshold(gray,127,255,cv2.THRESH_BINARY)
             contours, hierarchy = cv2.findContours(binary, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
             image0 = cv2.drawContours(image0,contours,-1,(0,0,255),3)
+            # cv2.imshow('image0',image0)
+            # cv2.waitKey(0)
+            #test
+            # for i in range(len(contours)):
+            #     image_test = cv2.drawContours(image0,contours,i,(0,0,255),3)
+            #     cv2.imshow('image1',image_test)
+            #     cv2.waitKey(0)
 
             #step2: get and store points, color of each contour
-            for i in range(0,len(contours)-1):
+            #transform from image frame to paper frame
+            for i in range(0,len(contours)):
                 perim = cv2.arcLength(contours[i], True)
                 approx = cv2.approxPolyDP(contours[i], .05 * perim, True)
                 new_approx = ut.frame_transform(approx,self.halfX,self.halfY)
@@ -1369,18 +1377,17 @@ class Predictor:
         right_pts = []
         for pt in pts:
             product = a*pt[0]+b*pt[1]+c
-            if product<0 and abs(product)>4000:
+            if product<0 and abs(product)>3000:
                 left_pts.append(pt)
-            elif product>0 and abs(product)>4000:
+            elif product>0 and abs(product)>3000:
                 right_pts.append(pt)
-            elif abs(product)<=4000:
+            elif abs(product)<=3000:
                 left_pts.append(pt)
                 right_pts.append(pt)
         left_pts.append(current_crease[1])
         left_pts.append(current_crease[0])
         right_pts.append(current_crease[1])
-        right_pts.append(current_crease[0])
-        # print 'left_pts',left_pts
+        right_pts.append(current_crease[0])    
 
         #step2: reverse the left pts
         reversed_left_pts = []
@@ -1431,6 +1438,10 @@ class Predictor:
             angle=np.dot(l1,l2)/(np.linalg.norm(l1)*np.linalg.norm(l2))
             if angle==1:
                 new_pts_src1.remove(pt2)
+        
+        ##test
+        # cv2.imshow('mask',mask)
+        # cv2.waitKey(0)
 
         return new_pts_src1,mask
 
@@ -1567,7 +1578,8 @@ class ParameterGenerator:
         # print 'grasp method',method
 
         #step2: transform from paper frame to the world frame
-        rot_mat=np.matrix([[-1,0,0],[0,-1,0],[0,0,1]])
+        # rot_mat=np.matrix([[-1,0,0],[0,-1,0],[0,0,1]])
+        rot_mat=np.matrix([[1,0,0],[0,1,0],[0,0,1]])
         grasp_point = ut.pointTransformation(grasp_point,[0,0,0],rot_mat)
         target_point = ut.pointTransformation(target_point,[0,0,0],rot_mat)
         crease_line = [current_crease[1][0]-current_crease[0][0],current_crease[1][1]-current_crease[0][1]]
@@ -1591,12 +1603,12 @@ class ParameterGenerator:
         grasp_rot_angle = ut.findGraspAngle(method,crease_axis)
         startP2refP = [crease_point[0]/1000,crease_point[1]/1000,0]
         crease_rot_angle = ut.findMakeCreaseAngle(crease_axis)
-        # print 'trans_target2ref',trans_target2ref
-        # print 'crease axis',crease_axis
-        # print 'crease perp l',crease_perp_l
-        # print 'grasp rot angle',grasp_rot_angle
-        # print 'startP2refP',startP2refP
-        # print 'crease rot angle',crease_rot_angle
+        print 'trans_target2ref',trans_target2ref
+        print 'crease axis',crease_axis
+        print 'crease perp l',crease_perp_l
+        print 'grasp rot angle',grasp_rot_angle
+        print 'startP2refP',startP2refP
+        print 'crease rot angle',crease_rot_angle
         return trans_target2ref,crease_axis,crease_perp_l,grasp_rot_angle,startP2refP,crease_rot_angle,method,crease_norm
 
 class optical_flow:
